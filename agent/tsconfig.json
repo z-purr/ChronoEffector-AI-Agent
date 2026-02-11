@@ -5,12 +5,11 @@
     "moduleResolution": "NodeNext",
     "strict": true,
     "esModuleInterop": true,
+    "skipLibCheck": true,
     "outDir": "dist",
     "rootDir": "src",
     "declaration": true,
-    "sourceMap": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "sourceMap": true
   },
   "include": ["src/**/*"]
 }

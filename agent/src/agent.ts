@@ -24,7 +24,7 @@ interface AgentState {
 export async function runCycle(
   state: AgentState,
   wallet: Awaited<ReturnType<typeof createAgentWallet>>,
-  llmClient: LLMClient
+  llmClient: LLMClient,
 ): Promise<AgentState> {
   console.log(`\n--- Cycle ${state.cycle + 1} ---`);
 

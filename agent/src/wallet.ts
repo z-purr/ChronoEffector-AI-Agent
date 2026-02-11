@@ -1,4 +1,11 @@
-import { createWalletClient, createPublicClient, http, formatUnits, type Hex, type Chain } from "viem";
+import {
+  createWalletClient,
+  createPublicClient,
+  http,
+  formatUnits,
+  type Hex,
+  type Chain,
+} from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { erc20Abi } from "viem";
 import { ViemWalletProvider } from "@coinbase/agentkit";
@@ -29,7 +36,8 @@ export async function createAgentWallet(privateKey: Hex, chain: Chain) {
     transport: http(),
   });
 
-  const provider = new ViemWalletProvider(walletClient);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const provider = new ViemWalletProvider(walletClient as any);
 
   const usdcAddress = chain.id === 8453 ? USDC_BASE : USDC_BASE_SEPOLIA;
 
@@ -37,7 +45,7 @@ export async function createAgentWallet(privateKey: Hex, chain: Chain) {
 }
 
 export async function getBalances(
-  wallet: Awaited<ReturnType<typeof createAgentWallet>>
+  wallet: Awaited<ReturnType<typeof createAgentWallet>>,
 ): Promise<WalletInfo> {
   const { publicClient, account, usdcAddress, walletClient } = wallet;
 

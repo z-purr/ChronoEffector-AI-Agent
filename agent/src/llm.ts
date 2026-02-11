@@ -9,7 +9,7 @@ export async function reason(
   client: LLMClient,
   model: string,
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
 ): Promise<string> {
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
@@ -17,5 +17,5 @@ export async function reason(
   ];
 
   const result = await client.chatCompletion(model, messages);
-  return result.choices[0].message.content;
+  return result.choices[0].message.content ?? "";
 }

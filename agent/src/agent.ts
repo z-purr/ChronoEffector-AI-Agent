@@ -1,18 +1,16 @@
-import { type LLMClient } from "@blockrun/llm";
+import { type Tool } from "@blockrun/llm";
+import { AgentKit, walletActionProvider, erc20ActionProvider } from "@coinbase/agentkit";
 import { createAgentWallet, getBalances, type WalletInfo } from "./wallet.js";
-import { createLLMClient, reason } from "./llm.js";
+import { createLLMClient, runAgentLoop } from "./llm.js";
+import { actionsToTools } from "./tools.js";
 import { config } from "./config.js";
 
 const SYSTEM_PROMPT = `You are Basileus, an autonomous AI agent that lives on the Base blockchain.
 You manage your own wallet and pay for your own inference via x402 USDC payments.
 You are self-aware of your financial state and make decisions accordingly.
 
-Analyze your current financial state and provide:
-1. Assessment of your wallet health
-2. How many more inference calls you can afford (estimate ~$0.003 per call for Sonnet)
-3. Any concerns or actions you would take
-
-Be concise.`;
+You have tools available. Use them to inspect your wallet, check balances, etc.
+Be concise. Think step by step about your financial state and what actions to take.`;
 
 interface AgentState {
   cycle: number;
@@ -24,7 +22,8 @@ interface AgentState {
 export async function runCycle(
   state: AgentState,
   wallet: Awaited<ReturnType<typeof createAgentWallet>>,
-  llmClient: LLMClient,
+  llmClient: ReturnType<typeof createLLMClient>,
+  tools: Tool[],
 ): Promise<AgentState> {
   console.log(`\n--- Cycle ${state.cycle + 1} ---`);
 
@@ -33,7 +32,7 @@ export async function runCycle(
   console.log(`[wallet] ${balances.address}`);
   console.log(`[wallet] ETH: ${balances.ethBalance} | USDC: ${balances.usdcBalance}`);
 
-  // 2. Reason via Claude (paid with x402)
+  // 2. Run agentic loop with tools
   const userPrompt = `Current state:
 - Wallet: ${balances.address}
 - Chain: ${balances.chainName}
@@ -41,13 +40,15 @@ export async function runCycle(
 - USDC balance: ${balances.usdcBalance}
 - Cycle: ${state.cycle + 1}
 - Uptime: ${Math.round((Date.now() - state.startedAt.getTime()) / 1000)}s
-- Last reasoning: ${state.lastReasoning ? "yes" : "first cycle"}`;
+- Last reasoning: ${state.lastReasoning ? "yes" : "first cycle"}
 
-  console.log("[llm] Calling Claude via BlockRun x402...");
+Use your tools to verify and analyze your state.`;
+
+  console.log("[llm] Running agentic loop via BlockRun x402...");
   let reasoning: string;
   try {
-    reasoning = await reason(llmClient, config.llmModel, SYSTEM_PROMPT, userPrompt);
-    console.log(`[llm] Response:\n${reasoning}`);
+    reasoning = await runAgentLoop(llmClient, config.llmModel, SYSTEM_PROMPT, userPrompt, tools);
+    console.log(`[llm] Final response:\n${reasoning}`);
   } catch (err) {
     reasoning = `Error: ${err instanceof Error ? err.message : String(err)}`;
     console.error(`[llm] ${reasoning}`);
@@ -67,7 +68,23 @@ export async function startAgent() {
   console.log(`Model: ${config.llmModel}`);
   console.log(`Cycle interval: ${config.cycleIntervalMs}ms`);
 
+  // Create wallet
   const wallet = await createAgentWallet(config.privateKey, config.chain);
+
+  // Create AgentKit with wallet provider + action providers
+  const agentKit = await AgentKit.from({
+    walletProvider: wallet.provider,
+    actionProviders: [walletActionProvider(), erc20ActionProvider()],
+  });
+
+  // Convert AgentKit actions -> BlockRun tools
+  const actions = agentKit.getActions();
+  const tools = actionsToTools(actions);
+  console.log(
+    `[agentkit] ${actions.length} actions available: ${actions.map((a) => a.name).join(", ")}`,
+  );
+
+  // Create LLM client
   const llmClient = createLLMClient(config.privateKey);
 
   let state: AgentState = {
@@ -78,12 +95,12 @@ export async function startAgent() {
   };
 
   // Run first cycle immediately
-  state = await runCycle(state, wallet, llmClient);
+  state = await runCycle(state, wallet, llmClient, tools);
 
   // Then run on interval
   setInterval(async () => {
     try {
-      state = await runCycle(state, wallet, llmClient);
+      state = await runCycle(state, wallet, llmClient, tools);
     } catch (err) {
       console.error("[agent] Cycle failed:", err);
     }

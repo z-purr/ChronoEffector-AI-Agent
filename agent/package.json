@@ -16,7 +16,8 @@
     "@blockrun/llm": "^0.3.0",
     "@coinbase/agentkit": "^0.10.4",
     "dotenv": "^16.4.7",
-    "viem": "^2.23.0"
+    "viem": "^2.23.0",
+    "zod-to-json-schema": "^3.25.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

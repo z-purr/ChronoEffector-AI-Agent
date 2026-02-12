@@ -192,26 +192,8 @@ async def wait_for_instance(
     )
 
 
-async def deploy_instance(
-    private_key: str,
-    vcpus: int = 2,
-    memory: int = 4096,
-) -> tuple[str, str]:
-    """
-    Full deployment flow:
-    1. Check ALEPH balance >= 1
-    2. Read user SSH pubkey
-    3. Create instance message
-    4. Create Superfluid flows
-    5. Notify CRN
-    6. Wait for IP
-
-    Returns (instance_hash, ipv6_address).
-    """
-    account = get_aleph_account(private_key)
-    crn = DEFAULT_CRN
-
-    # Check ALEPH balance
+def check_aleph_balance(account: ETHAccount) -> Decimal:
+    """Check ALEPH balance, raise if < 1. Returns balance in ALEPH."""
     balance_raw = account.get_token_balance()
     balance_aleph = balance_raw / Decimal(10**ALEPH_DECIMALS)
     if balance_raw < MIN_ALEPH_BALANCE:
@@ -219,26 +201,4 @@ async def deploy_instance(
             f"ALEPH balance is {balance_aleph:.4f}, need at least 1. "
             f"Fund {account.get_address()} with ALEPH tokens on Base."
         )
-
-    # Read SSH pubkey
-    ssh_pubkey = get_user_ssh_pubkey()
-
-    # 1. Create instance
-    instance_msg = await create_instance(
-        account, crn, vcpus=vcpus, memory=memory, ssh_pubkey=ssh_pubkey,
-    )
-    instance_hash = instance_msg.item_hash
-
-    # 2. Create PAYG flows
-    await create_flows(account, instance_hash, crn)
-
-    # Wait for flows to confirm on-chain before notifying
-    await asyncio.sleep(15)
-
-    # 3. Notify CRN
-    await notify_allocation(crn, instance_hash)
-
-    # 4. Wait for instance to be up
-    ip = await wait_for_instance(crn, instance_hash)
-
-    return instance_hash, ip
+    return balance_aleph

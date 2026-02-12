@@ -10,7 +10,16 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.status import Status
 
-from basileus.aleph import deploy_instance
+from basileus.aleph import (
+    DEFAULT_CRN,
+    check_aleph_balance,
+    create_flows,
+    create_instance,
+    get_aleph_account,
+    get_user_ssh_pubkey,
+    notify_allocation,
+    wait_for_instance,
+)
 from basileus.balance import wait_for_usdc_funding
 from basileus.wallet import generate_wallet, load_existing_wallet
 
@@ -110,16 +119,44 @@ async def deploy_command(
     rprint("[bold]Step 4:[/bold] Deploying to Aleph Cloud...")
     rprint()
 
+    account = get_aleph_account(private_key)
+    crn = DEFAULT_CRN
+    ssh_pubkey = get_user_ssh_pubkey()
+
     # Skip swap — assume ALEPH tokens already available
     console.print("  [dim]Skipping ALEPH swap (assuming tokens available)[/dim]")
 
-    instance_hash, instance_ip = await _run_step(
-        "Creating Aleph instance (2 vCPUs, 4GB RAM, PAYG) + flows + waiting for allocation",
-        fn=lambda: deploy_instance(private_key),
+    aleph_balance = check_aleph_balance(account)
+    console.print(f"  [green]\u2714[/green] Checked ALEPH balance")
+    rprint(f"  [dim]ALEPH balance: {aleph_balance:.4f}[/dim]")
+
+    instance_msg = await _run_step(
+        "Creating Aleph instance message (2 vCPUs, 4GB RAM, PAYG)",
+        fn=lambda: create_instance(account, crn, ssh_pubkey=ssh_pubkey),
+    )
+    instance_hash = instance_msg.item_hash
+    rprint(f"  [dim]Instance hash: {instance_hash}[/dim]")
+
+    await _run_step(
+        "Creating Superfluid payment flows (operator + community)",
+        fn=lambda: create_flows(account, instance_hash, crn),
     )
 
-    rprint(f"  [green]Instance hash:[/green] {instance_hash}")
-    rprint(f"  [green]Instance IP:[/green]   {instance_ip}")
+    await _run_step(
+        "Waiting for flows to confirm on-chain",
+        fn=lambda: asyncio.sleep(15),
+    )
+
+    await _run_step(
+        "Notifying CRN for allocation",
+        fn=lambda: notify_allocation(crn, instance_hash),
+    )
+
+    instance_ip = await _run_step(
+        "Waiting for instance to come up",
+        fn=lambda: wait_for_instance(crn, instance_hash),
+    )
+    rprint(f"  [dim]Instance IP: {instance_ip}[/dim]")
 
     rprint()
     console.rule("[bold green]Deployment Complete")

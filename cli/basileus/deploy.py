@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.status import Status
 
+from basileus.aleph import deploy_instance
 from basileus.balance import wait_for_usdc_funding
 from basileus.wallet import generate_wallet, load_existing_wallet
 
@@ -105,25 +106,32 @@ async def deploy_command(
     rprint(f"  [green]Received {balance:.2f} USDC[/green]")
     rprint()
 
-    # Step 5: Deployment steps (mocked)
-    rprint("[bold]Step 4:[/bold] Deploying agent...")
+    # Step 4: Deploy to Aleph Cloud
+    rprint("[bold]Step 4:[/bold] Deploying to Aleph Cloud...")
     rprint()
 
-    await _run_step("Purchasing ALEPH tokens via Aerodrome", mock_duration=2.5)
-    await _run_step("Creating Aleph Cloud instance", mock_duration=3.0)
-    await _run_step("Bundling agent code", mock_duration=1.5)
-    await _run_step("Deploying to Aleph Cloud", mock_duration=3.0)
-    await _run_step("Registering ERC-8004 identity", mock_duration=2.0)
+    # Skip swap — assume ALEPH tokens already available
+    console.print("  [dim]Skipping ALEPH swap (assuming tokens available)[/dim]")
+
+    instance_hash, instance_ip = await _run_step(
+        "Creating Aleph instance (2 vCPUs, 4GB RAM, PAYG) + flows + waiting for allocation",
+        fn=lambda: deploy_instance(private_key),
+    )
+
+    rprint(f"  [green]Instance hash:[/green] {instance_hash}")
+    rprint(f"  [green]Instance IP:[/green]   {instance_ip}")
 
     rprint()
     console.rule("[bold green]Deployment Complete")
     rprint()
     rprint(
         Panel(
-            f"[bold]Agent Address:[/bold]  [cyan]{address}[/cyan]\n"
-            f"[bold]USDC Balance:[/bold]   {balance:.2f} USDC\n"
-            f"[bold]Network:[/bold]        Base Mainnet\n"
-            f"[bold]Status:[/bold]         [green]Running[/green]\n"
+            f"[bold]Agent Address:[/bold]    [cyan]{address}[/cyan]\n"
+            f"[bold]USDC Balance:[/bold]     {balance:.2f} USDC\n"
+            f"[bold]Instance Hash:[/bold]    {instance_hash}\n"
+            f"[bold]Instance IP:[/bold]      {instance_ip}\n"
+            f"[bold]Network:[/bold]          Base Mainnet\n"
+            f"[bold]Status:[/bold]           [green]Running[/green]\n"
             f"\n"
             f"[dim]Dashboard: coming soon[/dim]",
             title="[bold green]Basileus Agent[/bold green]",

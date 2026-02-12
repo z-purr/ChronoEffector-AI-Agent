@@ -7,7 +7,10 @@ from typing import Any
 
 from aiohttp import ClientSession
 from aleph.sdk.chains.ethereum import ETHAccount
-from aleph.sdk.client.authenticated_http import AlephHttpClient, AuthenticatedAlephHttpClient
+from aleph.sdk.client.authenticated_http import (
+    AlephHttpClient,
+    AuthenticatedAlephHttpClient,
+)
 from aleph.sdk.conf import settings
 from aleph.sdk.evm_utils import FlowUpdate
 from aleph.sdk.query.filters import MessageFilter
@@ -107,10 +110,16 @@ class ExistingResources:
 
     @property
     def has_any(self) -> bool:
-        return bool(self.instance_hashes) or self.has_operator_flow or self.has_community_flow
+        return (
+            bool(self.instance_hashes)
+            or self.has_operator_flow
+            or self.has_community_flow
+        )
 
 
-async def check_existing_resources(account: ETHAccount, crn: CRNInfo) -> ExistingResources:
+async def check_existing_resources(
+    account: ETHAccount, crn: CRNInfo
+) -> ExistingResources:
     """Check if address already has instance messages or Superfluid flows."""
     # Check existing instance messages
     async with AlephHttpClient(api_server=ALEPH_API_URL) as client:
@@ -134,7 +143,9 @@ async def check_existing_resources(account: ETHAccount, crn: CRNInfo) -> Existin
     )
 
 
-async def delete_existing_resources(account: ETHAccount, resources: ExistingResources, crn: CRNInfo) -> None:
+async def delete_existing_resources(
+    account: ETHAccount, resources: ExistingResources, crn: CRNInfo
+) -> None:
     """Delete existing instance messages and close Superfluid flows."""
     # Close flows first (on-chain txs that can conflict on nonce)
     if resources.has_operator_flow:
@@ -169,7 +180,11 @@ async def delete_existing_resources(account: ETHAccount, resources: ExistingReso
             account=account, api_server=ALEPH_API_URL
         ) as client:
             for h in resources.instance_hashes:
-                await client.forget(hashes=[h], reason="Cleanup before redeployment", channel=ALEPH_CHANNEL)
+                await client.forget(
+                    hashes=[h],
+                    reason="Cleanup before redeployment",
+                    channel=ALEPH_CHANNEL,
+                )
 
 
 async def create_instance(
@@ -227,7 +242,8 @@ class FlowRates:
 
 
 async def compute_flow_rates(
-    account: ETHAccount, instance_hash: str,
+    account: ETHAccount,
+    instance_hash: str,
 ) -> FlowRates:
     """Compute required Superfluid flow rates from instance pricing."""
     async with AuthenticatedAlephHttpClient(
@@ -257,7 +273,9 @@ def _check_tx(account: ETHAccount, tx_hash: str | None, label: str) -> None:
 
 
 async def create_operator_flow(
-    account: ETHAccount, crn: CRNInfo, flow_rate: Decimal,
+    account: ETHAccount,
+    crn: CRNInfo,
+    flow_rate: Decimal,
 ) -> str | None:
     """Create operator Superfluid flow. Checks tx receipt. Returns tx hash."""
     existing = await account.get_flow(crn.receiver_address)
@@ -274,7 +292,8 @@ async def create_operator_flow(
 
 
 async def create_community_flow(
-    account: ETHAccount, flow_rate: Decimal,
+    account: ETHAccount,
+    flow_rate: Decimal,
 ) -> str | None:
     """Create community Superfluid flow. Checks tx receipt. Returns tx hash."""
     await asyncio.sleep(5)
@@ -304,7 +323,9 @@ async def notify_allocation(
                 if resp.ok:
                     return
                 error = await resp.text()
-                if ("payment stream" in error.lower() or "402" in error) and attempt < max_retries - 1:
+                if (
+                    "payment stream" in error.lower() or "402" in error
+                ) and attempt < max_retries - 1:
                     await asyncio.sleep(retry_delay)
                     continue
                 raise ValueError(f"Allocation failed: {error}")
@@ -313,16 +334,12 @@ async def notify_allocation(
 async def fetch_instance_ip(crn: CRNInfo, instance_hash: str) -> str:
     """Fetch IPv6 of instance from CRN. Returns empty string if not found."""
     async with ClientSession() as session:
-        async with session.get(
-            f"{crn.url}{PATH_EXECUTIONS_LIST}"
-        ) as resp:
+        async with session.get(f"{crn.url}{PATH_EXECUTIONS_LIST}") as resp:
             resp.raise_for_status()
             executions = await resp.json()
             if instance_hash not in executions:
                 return ""
-            interface = IPv6Interface(
-                executions[instance_hash]["networking"]["ipv6"]
-            )
+            interface = IPv6Interface(executions[instance_hash]["networking"]["ipv6"])
             return str(interface.ip + 1)
 
 

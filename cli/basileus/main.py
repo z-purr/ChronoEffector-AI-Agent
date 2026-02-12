@@ -1,5 +1,6 @@
 from basileus.async_typer import AsyncTyper
-from basileus.deploy import deploy_command
+from basileus.commands.deploy import deploy_command
+from basileus.commands.stop import stop_command
 
 app = AsyncTyper(
     help="Basileus — Deploy autonomous prediction market agents on Base",
@@ -7,3 +8,4 @@ app = AsyncTyper(
 )
 
 app.command(name="deploy")(deploy_command)
+app.command(name="stop")(stop_command)

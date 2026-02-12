@@ -45,10 +45,8 @@ async def _run_step(
 
 
 async def deploy_command(
-    agent_dir: Path = typer.Option(
+    path: Path = typer.Argument(
         None,
-        "--agent-dir",
-        "-d",
         help="Path to agent directory (default: current working directory)",
     ),
     min_usdc: float = typer.Option(
@@ -64,18 +62,18 @@ async def deploy_command(
 ) -> None:
     """Deploy a new Basileus agent — generates wallet, funds it, and deploys to Aleph Cloud."""
 
-    if agent_dir is None:
-        agent_dir = Path.cwd()
+    if path is None:
+        path = Path.cwd()
 
-    agent_dir = agent_dir.resolve()
-    env_path = agent_dir / ".env.prod"
+    path = path.resolve()
+    env_path = path / ".env.prod"
 
     console.rule("[bold blue]Basileus Agent Deployment")
     rprint()
 
     # Step 1: Wallet
     rprint("[bold]Step 1:[/bold] Setting up Base wallet...")
-    existing = load_existing_wallet(agent_dir)
+    existing = load_existing_wallet(path)
     if existing:
         address, private_key = existing
         rprint(f"  [green]Using existing wallet:[/green] {address}")
@@ -95,7 +93,7 @@ async def deploy_command(
     if env_vars is not None:
         rprint("[bold]Step 2:[/bold] Configuring agent environment...")
         env_content = "\n".join(f"{k}={v}" for k, v in env_vars.items()) + "\n"
-        os.makedirs(agent_dir, exist_ok=True)
+        os.makedirs(path, exist_ok=True)
         with open(env_path, "w") as f:
             f.write(env_content)
         rprint(f"  [green]Saved to {env_path}[/green]")
@@ -125,7 +123,9 @@ async def deploy_command(
             default=True,
         )
         if not delete:
-            rprint("  [red]Cannot proceed with existing resources. Use a different wallet.[/red]")
+            rprint(
+                "  [red]Cannot proceed with existing resources. Use a different wallet.[/red]"
+            )
             raise typer.Exit(1)
 
         await _run_step(
@@ -192,14 +192,18 @@ async def deploy_command(
         fn=lambda: create_operator_flow(account, crn, flow_rates.operator),
     )
     if op_tx:
-        rprint(f"  [dim]Tx: [link=https://basescan.org/tx/0x{op_tx}]0x{op_tx}[/link][/dim]")
+        rprint(
+            f"  [dim]Tx: [link=https://basescan.org/tx/0x{op_tx}]0x{op_tx}[/link][/dim]"
+        )
 
     com_tx = await _run_step(
         "Creating community Superfluid flow",
         fn=lambda: create_community_flow(account, flow_rates.community),
     )
     if com_tx:
-        rprint(f"  [dim]Tx: [link=https://basescan.org/tx/0x{com_tx}]0x{com_tx}[/link][/dim]")
+        rprint(
+            f"  [dim]Tx: [link=https://basescan.org/tx/0x{com_tx}]0x{com_tx}[/link][/dim]"
+        )
 
     await _run_step(
         "Notifying CRN for allocation",

@@ -12,6 +12,7 @@ from aleph.sdk.evm_utils import FlowUpdate
 from aleph_message.models import (
     Chain,
     InstanceMessage,
+    ItemHash,
     Payment,
     PaymentType,
     StoreMessage,
@@ -97,7 +98,7 @@ async def create_instance(
                 receiver=crn.receiver_address,
             ),
             requirements=HostRequirements(
-                node=NodeRequirements(node_hash=crn.hash)
+                node=NodeRequirements(node_hash=ItemHash(crn.hash))
             ),
             channel=ALEPH_CHANNEL,
             address=account.get_address(),

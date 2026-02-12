@@ -127,7 +127,7 @@ async def deploy_command(
     console.print("  [dim]Skipping ALEPH swap (assuming tokens available)[/dim]")
 
     aleph_balance = check_aleph_balance(account)
-    console.print(f"  [green]\u2714[/green] Checked ALEPH balance")
+    console.print("  [green]\u2714[/green] Checked ALEPH balance")
     rprint(f"  [dim]ALEPH balance: {aleph_balance:.4f}[/dim]")
 
     instance_msg = await _run_step(

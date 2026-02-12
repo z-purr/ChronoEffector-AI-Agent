@@ -3,16 +3,19 @@ from dataclasses import dataclass
 from decimal import Decimal
 from ipaddress import IPv6Interface
 from pathlib import Path
+from typing import Any
 
 from aiohttp import ClientSession
 from aleph.sdk.chains.ethereum import ETHAccount
-from aleph.sdk.client.authenticated_http import AuthenticatedAlephHttpClient
+from aleph.sdk.client.authenticated_http import AlephHttpClient, AuthenticatedAlephHttpClient
 from aleph.sdk.conf import settings
 from aleph.sdk.evm_utils import FlowUpdate
+from aleph.sdk.query.filters import MessageFilter
 from aleph_message.models import (
     Chain,
     InstanceMessage,
     ItemHash,
+    MessageType,
     Payment,
     PaymentType,
     StoreMessage,
@@ -65,6 +68,75 @@ def get_user_ssh_pubkey() -> str | None:
     return None
 
 
+@dataclass
+class ExistingResources:
+    """Existing Aleph resources for an address."""
+
+    instance_hashes: list[str]
+    has_operator_flow: bool
+    has_community_flow: bool
+
+    @property
+    def has_any(self) -> bool:
+        return bool(self.instance_hashes) or self.has_operator_flow or self.has_community_flow
+
+
+async def check_existing_resources(account: ETHAccount, crn: CRNInfo) -> ExistingResources:
+    """Check if address already has instance messages or Superfluid flows."""
+    # Check existing instance messages
+    async with AlephHttpClient(api_server=ALEPH_API_URL) as client:
+        msgs = await client.get_messages(
+            message_filter=MessageFilter(
+                message_types=[MessageType.instance],
+                addresses=[account.get_address()],
+                channels=[ALEPH_CHANNEL],
+            )
+        )
+        instance_hashes = [m.item_hash for m in msgs.messages]
+
+    # Check existing flows
+    operator_flow: dict[str, Any] = await account.get_flow(crn.receiver_address)
+    community_flow: dict[str, Any] = await account.get_flow(COMMUNITY_RECEIVER)
+
+    return ExistingResources(
+        instance_hashes=instance_hashes,
+        has_operator_flow=Decimal(operator_flow["flowRate"] or 0) > 0,
+        has_community_flow=Decimal(community_flow["flowRate"] or 0) > 0,
+    )
+
+
+async def delete_existing_resources(account: ETHAccount, resources: ExistingResources, crn: CRNInfo) -> None:
+    """Delete existing instance messages and close Superfluid flows."""
+    # Forget instance messages
+    if resources.instance_hashes:
+        async with AuthenticatedAlephHttpClient(
+            account=account, api_server=ALEPH_API_URL
+        ) as client:
+            for h in resources.instance_hashes:
+                await client.forget(hashes=[h], channel=ALEPH_CHANNEL)
+
+    # Close flows
+    if resources.has_operator_flow:
+        flow_info = await account.get_flow(crn.receiver_address)
+        flow_rate = Decimal(flow_info["flowRate"] or 0)
+        if flow_rate > 0:
+            await account.manage_flow(
+                receiver=crn.receiver_address,
+                flow=flow_rate,
+                update_type=FlowUpdate.REDUCE,
+            )
+
+    if resources.has_community_flow:
+        flow_info = await account.get_flow(COMMUNITY_RECEIVER)
+        flow_rate = Decimal(flow_info["flowRate"] or 0)
+        if flow_rate > 0:
+            await account.manage_flow(
+                receiver=COMMUNITY_RECEIVER,
+                flow=flow_rate,
+                update_type=FlowUpdate.REDUCE,
+            )
+
+
 async def create_instance(
     account: ETHAccount,
     crn: CRNInfo,
@@ -114,7 +186,7 @@ async def create_instance(
 async def create_flows(
     account: ETHAccount, instance_hash: str, crn: CRNInfo
 ) -> None:
-    """Create PAYG Superfluid flows (operator + community)."""
+    """Create PAYG Superfluid flows (operator + community). Waits for on-chain confirmation."""
     async with AuthenticatedAlephHttpClient(
         account=account, api_server=ALEPH_API_URL
     ) as client:
@@ -127,7 +199,7 @@ async def create_flows(
         community_flow = total_flow * COMMUNITY_FLOW_PERCENTAGE
         operator_flow = total_flow * (1 - COMMUNITY_FLOW_PERCENTAGE)
 
-    # Create operator flow
+    # Create operator flow (waits for tx receipt)
     existing = await account.get_flow(crn.receiver_address)
     existing_rate = Decimal(existing["flowRate"] or 0)
     if existing_rate < operator_flow:
@@ -137,9 +209,7 @@ async def create_flows(
             update_type=FlowUpdate.INCREASE,
         )
 
-    await asyncio.sleep(10)
-
-    # Create community flow
+    # Create community flow (waits for tx receipt)
     existing = await account.get_flow(COMMUNITY_RECEIVER)
     existing_rate = Decimal(existing["flowRate"] or 0)
     if existing_rate < community_flow:

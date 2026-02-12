@@ -13,8 +13,10 @@ from rich.status import Status
 from basileus.aleph import (
     DEFAULT_CRN,
     check_aleph_balance,
+    check_existing_resources,
     create_flows,
     create_instance,
+    delete_existing_resources,
     get_aleph_account,
     get_user_ssh_pubkey,
     notify_allocation,
@@ -51,6 +53,11 @@ async def deploy_command(
         20.0,
         "--min-usdc",
         help="Minimum USDC balance to wait for before proceeding",
+    ),
+    ssh_pubkey_path: Path = typer.Option(
+        None,
+        "--ssh-key",
+        help="Path to SSH public key file (default: auto-detect from ~/.ssh/)",
     ),
 ) -> None:
     """Deploy a new Basileus agent — generates wallet, funds it, and deploys to Aleph Cloud."""
@@ -92,6 +99,39 @@ async def deploy_command(
         rprint(f"  [green]Saved to {env_path}[/green]")
         rprint()
 
+    # Check for existing Aleph resources
+    account = get_aleph_account(private_key)
+    crn = DEFAULT_CRN
+
+    resources = await _run_step(
+        "Checking for existing Aleph resources",
+        fn=lambda: check_existing_resources(account, crn),
+    )
+
+    if resources.has_any:
+        details = []
+        if resources.instance_hashes:
+            details.append(f"{len(resources.instance_hashes)} instance(s)")
+        if resources.has_operator_flow:
+            details.append("operator flow")
+        if resources.has_community_flow:
+            details.append("community flow")
+
+        rprint(f"  [yellow]Found existing resources: {', '.join(details)}[/yellow]")
+        delete = typer.confirm(
+            "  Delete existing resources and proceed?",
+            default=True,
+        )
+        if not delete:
+            rprint("  [red]Cannot proceed with existing resources. Use a different wallet.[/red]")
+            raise typer.Exit(1)
+
+        await _run_step(
+            "Deleting existing resources",
+            fn=lambda: delete_existing_resources(account, resources, crn),
+        )
+    rprint()
+
     # Step 3: Fund wallet
     rprint("[bold]Step 3:[/bold] Fund your agent wallet")
     rprint()
@@ -115,13 +155,15 @@ async def deploy_command(
     rprint(f"  [green]Received {balance:.2f} USDC[/green]")
     rprint()
 
-    # Step 4: Deploy to Aleph Cloud
+    # Step 5: Deploy to Aleph Cloud
     rprint("[bold]Step 4:[/bold] Deploying to Aleph Cloud...")
     rprint()
 
-    account = get_aleph_account(private_key)
-    crn = DEFAULT_CRN
-    ssh_pubkey = get_user_ssh_pubkey()
+    # Resolve SSH pubkey
+    if ssh_pubkey_path is not None:
+        ssh_pubkey = ssh_pubkey_path.expanduser().read_text().strip()
+    else:
+        ssh_pubkey = get_user_ssh_pubkey()
 
     # Skip swap — assume ALEPH tokens already available
     console.print("  [dim]Skipping ALEPH swap (assuming tokens available)[/dim]")
@@ -140,11 +182,6 @@ async def deploy_command(
     await _run_step(
         "Creating Superfluid payment flows (operator + community)",
         fn=lambda: create_flows(account, instance_hash, crn),
-    )
-
-    await _run_step(
-        "Waiting for flows to confirm on-chain",
-        fn=lambda: asyncio.sleep(15),
     )
 
     await _run_step(

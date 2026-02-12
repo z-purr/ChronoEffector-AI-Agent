@@ -113,7 +113,7 @@ async def delete_existing_resources(account: ETHAccount, resources: ExistingReso
             account=account, api_server=ALEPH_API_URL
         ) as client:
             for h in resources.instance_hashes:
-                await client.forget(hashes=[h], channel=ALEPH_CHANNEL)
+                await client.forget(hashes=[h], reason="Cleanup before redeployment", channel=ALEPH_CHANNEL)
 
     # Close flows
     if resources.has_operator_flow:

@@ -232,6 +232,9 @@ async def deploy_instance(
     # 2. Create PAYG flows
     await create_flows(account, instance_hash, crn)
 
+    # Wait for flows to confirm on-chain before notifying
+    await asyncio.sleep(15)
+
     # 3. Notify CRN
     await notify_allocation(crn, instance_hash)
 

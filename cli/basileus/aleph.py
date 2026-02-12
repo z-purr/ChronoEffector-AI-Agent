@@ -220,15 +220,22 @@ async def create_flows(
         )
 
 
-async def notify_allocation(crn: CRNInfo, instance_hash: str) -> None:
-    """Notify CRN to allocate the instance."""
-    async with ClientSession() as session:
-        async with session.post(
-            f"{crn.url}{PATH_INSTANCE_NOTIFY}",
-            json={"instance": instance_hash},
-        ) as resp:
-            if not resp.ok:
+async def notify_allocation(
+    crn: CRNInfo, instance_hash: str, max_retries: int = 5, retry_delay: int = 3
+) -> None:
+    """Notify CRN to allocate the instance. Retries on flow-related errors."""
+    for attempt in range(max_retries):
+        async with ClientSession() as session:
+            async with session.post(
+                f"{crn.url}{PATH_INSTANCE_NOTIFY}",
+                json={"instance": instance_hash},
+            ) as resp:
+                if resp.ok:
+                    return
                 error = await resp.text()
+                if "Insufficient payment stream" in error and attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay)
+                    continue
                 raise ValueError(f"Allocation failed: {error}")
 
 

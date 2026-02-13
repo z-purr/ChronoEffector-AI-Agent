@@ -46,7 +46,9 @@ def _check_tx(account: ETHAccount, tx_hash: str | None, label: str) -> None:
         raise ValueError(f"{label}: no tx hash returned")
     from hexbytes import HexBytes
 
-    receipt = account._provider.eth.get_transaction_receipt(HexBytes(tx_hash))  # type: ignore[union-attr]
+    receipt = account._provider.eth.wait_for_transaction_receipt(  # type: ignore[union-attr]
+        HexBytes(tx_hash), timeout=60
+    )
     if receipt["status"] != 1:
         raise ValueError(f"{label}: tx {tx_hash} reverted on-chain")
 

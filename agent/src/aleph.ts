@@ -6,9 +6,6 @@ export const WETH_ADDRESS = "0x4200000000000000000000000000000000000006" as cons
 export const UNISWAP_ROUTER = "0x2626664c2603336E57B271c5C0b26F421741e481" as const;
 export const UNISWAP_ALEPH_POOL = "0xe11C66b25F0e9a9eBEf1616B43424CC6E2168FC8" as const;
 
-// --- Superfluid subgraph ---
-export const SUPERFLUID_SUBGRAPH_URL = "https://base-mainnet.subgraph.x.superfluid.dev/";
-
 // --- Uniswap V3 pool ABI (slot0 only) ---
 export const uniswapV3PoolAbi = [
   {

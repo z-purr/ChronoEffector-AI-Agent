@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { customActionProvider, EvmWalletProvider } from "@coinbase/agentkit";
+import {
+  customActionProvider,
+  EvmWalletProvider,
+  SuperfluidQueryActionProvider,
+} from "@coinbase/agentkit";
 import { createPublicClient, formatUnits, http, parseEther, encodeFunctionData } from "viem";
 import { base } from "viem/chains";
 import {
@@ -7,7 +11,6 @@ import {
   WETH_ADDRESS,
   UNISWAP_ROUTER,
   UNISWAP_ALEPH_POOL,
-  SUPERFLUID_SUBGRAPH_URL,
   uniswapV3PoolAbi,
   uniswapRouterAbi,
 } from "./aleph.js";
@@ -17,56 +20,52 @@ const publicClient = createPublicClient({
   transport: http(),
 });
 
-const SUPERFLUID_BALANCE_QUERY = `
-  query accountTokenSnapshots($where: AccountTokenSnapshot_filter = {}) {
-    accountTokenSnapshots(where: $where) {
-      balanceUntilUpdatedAt
-      totalOutflowRate
-    }
-  }
-`;
+const balanceOfAbi = [
+  {
+    inputs: [{ name: "account", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
 
 async function getAlephInfo(walletProvider: EvmWalletProvider): Promise<string> {
   try {
-    const address = walletProvider.getAddress().toLowerCase();
+    const address = walletProvider.getAddress() as `0x${string}`;
 
-    // 1. Query Superfluid subgraph for ALEPH balance + outflow
-    const sfResponse = await fetch(SUPERFLUID_SUBGRAPH_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: SUPERFLUID_BALANCE_QUERY,
-        variables: {
-          where: {
-            account: address,
-            token: ALEPH_ADDRESS.toLowerCase(),
-          },
-        },
-      }),
-    });
+    // 1. Query streams via official Superfluid action provider
+    const sfQuery = new SuperfluidQueryActionProvider();
+    const streamsResult = await sfQuery.queryStreams(walletProvider);
 
-    if (!sfResponse.ok) {
-      return `Error: Superfluid subgraph returned ${sfResponse.status}`;
+    let alephPerHour = 0;
+    try {
+      const jsonStr = streamsResult.replace("Current outflows are ", "");
+      const outflows = JSON.parse(jsonStr) as Array<{
+        currentFlowRate: string;
+        token: { symbol: string };
+        receiver: { id: string };
+      }>;
+      const alephOutflows = outflows.filter((o) => o.token.symbol.toLowerCase().includes("aleph"));
+      const totalFlowRate = alephOutflows.reduce((sum, o) => sum + BigInt(o.currentFlowRate), 0n);
+      // Flow rate is per-second in wei, convert to per-hour
+      alephPerHour = parseFloat(formatUnits(totalFlowRate * 3600n, 18));
+    } catch {
+      // No outflows or parse error
     }
 
-    const sfData = await sfResponse.json();
-    const snapshots = sfData?.data?.accountTokenSnapshots;
+    // 2. ALEPH balance via on-chain balanceOf (real-time for Super Tokens)
+    const rawBalance = await publicClient.readContract({
+      address: ALEPH_ADDRESS,
+      abi: balanceOfAbi,
+      functionName: "balanceOf",
+      args: [address],
+    });
+    const alephBalance = parseFloat(formatUnits(rawBalance, 18));
 
-    let alephBalance = 0;
-    let alephPerHour = 0;
     let hoursLeft = 1000000;
-
-    if (snapshots && snapshots.length > 0) {
-      const rawBalance = BigInt(snapshots[0].balanceUntilUpdatedAt);
-      const rawOutflow = BigInt(snapshots[0].totalOutflowRate);
-
-      alephBalance = parseFloat(formatUnits(rawBalance, 18));
-      // outflow is per-second, convert to per-hour
-      alephPerHour = parseFloat(formatUnits(rawOutflow * 3600n, 18));
-
-      if (alephPerHour > 0) {
-        hoursLeft = Math.round(alephBalance / alephPerHour);
-      }
+    if (alephPerHour > 0) {
+      hoursLeft = Math.round(alephBalance / alephPerHour);
     }
 
     // 2. ETH balance

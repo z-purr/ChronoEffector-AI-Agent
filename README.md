@@ -17,6 +17,11 @@ Fully autonomous, self-sustaining AI agent on Base. Trades prediction markets on
 - **ERC-8004** — on-chain agent identity
 - **AgentKit** — wallet + transactions
 
+## Contract addresses
+
+- ENS `L2Registry`: https://basescan.org/address/0x2e84f843299a132103e110c948c5e4739682c961
+- ENS `L2Registrar`: https://basescan.org/address/0x56C8E41AD3B7Ab39c70CFa952Ec349c1ca40b5ca
+
 ## Status
 
 ETHDenver 2026 hackathon project — WIP

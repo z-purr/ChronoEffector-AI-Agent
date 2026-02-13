@@ -49,6 +49,9 @@ contract L2Registrar {
     /// @notice The coinType for the current chain (ENSIP-11)
     uint256 public immutable coinType;
 
+    /// @notice Reverse mapping from address to registered label
+    mapping(address => string) public reverseNames;
+
     /// @notice Initializes the registrar with a registry contract
     /// @param _registry Address of the L2Registry contract
     constructor(address _registry) {
@@ -86,6 +89,9 @@ contract L2Registrar {
             owner,
             new bytes[](0)
         );
+
+        reverseNames[owner] = label;
+
         emit NameRegistered(label, owner);
     }
 

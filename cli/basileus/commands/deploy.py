@@ -37,11 +37,12 @@ from basileus.chain.superfluid import (
 )
 from basileus.chain.balance import wait_for_usdc_funding
 from basileus.chain.wallet import generate_wallet, load_existing_wallet
-from basileus.chain.constants import BASE_RPC_URL
+from basileus.chain.constants import BASE_RPC_URL, FRONTEND_CONTENT_HASH
 from basileus.chain.ens import (
     check_existing_subname,
     check_label_available,
     register_subname,
+    set_content_hash,
 )
 from basileus.ui import _fail, _run_step
 
@@ -211,6 +212,21 @@ async def deploy_command(
                 )
             except Exception as e:
                 _fail("Registering ENS subname", e)
+
+            await asyncio.sleep(2)
+
+            try:
+                content_tx = await _run_step(
+                    f"Setting contentHash for {label}.basileus-agent.eth",
+                    fn=lambda: asyncio.to_thread(
+                        set_content_hash, w3, private_key, label, FRONTEND_CONTENT_HASH
+                    ),
+                )
+                rprint(
+                    f"  [dim]Tx: [link=https://basescan.org/tx/{content_tx}]{content_tx}[/link][/dim]"
+                )
+            except Exception as e:
+                _fail("Setting contentHash", e)
             rprint()
 
         # Create Aleph Cloud instance
@@ -340,7 +356,7 @@ async def deploy_command(
                 f"[bold]Network:[/bold]          Base Mainnet\n"
                 f"[bold]Service:[/bold]          [green]basileus-agent (active)[/green]\n"
                 f"\n"
-                f"[dim]Dashboard: coming soon[/dim]",
+                f"[bold]Dashboard:[/bold]       [cyan][link=https://{label}.basileus-agent.eth.limo]https://{label}.basileus-agent.eth.limo[/link][/cyan]",
                 title="[bold green]Basileus Agent[/bold green]",
                 border_style="green",
             )

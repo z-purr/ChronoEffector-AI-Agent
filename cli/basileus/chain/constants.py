@@ -46,3 +46,46 @@ L2_REGISTRAR_ABI = [
         "type": "function",
     },
 ]
+
+# IPFS content hash (EIP-1577 encoded) — output of `npm run deploy:ipfs` in frontend/
+FRONTEND_CONTENT_HASH = "0xe30101701220976a1c290e6518d21e420f284ad14b6008c08517d266a02e18f349bbf5ff0484"
+
+# L2Registry on Base (ENS resolver for subnames)
+L2_REGISTRY_ADDRESS = "0x2e84f843299a132103e110c948c5e4739682c961"
+
+L2_REGISTRY_ABI = [
+    {
+        "inputs": [],
+        "name": "baseNode",
+        "outputs": [{"name": "", "type": "bytes32"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {"name": "parentNode", "type": "bytes32"},
+            {"name": "label", "type": "string"},
+        ],
+        "name": "makeNode",
+        "outputs": [{"name": "", "type": "bytes32"}],
+        "stateMutability": "pure",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {"name": "node", "type": "bytes32"},
+            {"name": "hash", "type": "bytes"},
+        ],
+        "name": "setContenthash",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "node", "type": "bytes32"}],
+        "name": "contenthash",
+        "outputs": [{"name": "", "type": "bytes"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+]

@@ -16,9 +16,13 @@ export function truncateAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
+/** Up to 4 decimals, trailing zeros stripped */
+export function formatAmount(val: number): string {
+  if (val === 0) return "0";
+  if (val > 0 && val < 0.001) return "< 0.001";
+  return parseFloat(val.toFixed(4)).toString();
+}
+
 export function formatWeiValue(wei: string): string {
-  const eth = parseFloat(wei) / 1e18;
-  if (eth === 0) return "0";
-  if (eth < 0.001) return "< 0.001";
-  return eth.toFixed(4);
+  return formatAmount(parseFloat(wei) / 1e18);
 }

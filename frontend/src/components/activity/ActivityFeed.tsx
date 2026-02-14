@@ -1,25 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AgentActivity } from "../../hooks/useActivities";
 import { useActivities } from "../../hooks/useActivities";
 import { useTokenTransfers } from "../../hooks/useTokenTransfers";
 import { useTransactions } from "../../hooks/useTransactions";
-import type { BlockscoutTokenTransferItem, BlockscoutTx } from "../../lib/blockscout";
 import { ActivityRow } from "./ActivityRow";
 import { FeedFilters, type FilterValue } from "./FeedFilters";
-import { TokenTransferRow } from "./TokenTransferRow";
-import { TransactionRow, TransactionRowSkeleton } from "./TransactionRow";
-
-type FeedItem =
-  | { kind: "tx"; timestamp: number; data: BlockscoutTx }
-  | { kind: "token_transfer"; timestamp: number; data: BlockscoutTokenTransferItem }
-  | { kind: "activity"; timestamp: number; data: AgentActivity };
+import { FeedGroupRow } from "./FeedGroupRow";
+import { FeedItemRow } from "./FeedItemRow";
+import { groupFeedItems } from "./groupItems";
+import { normalizeTokenTransfer, normalizeTx } from "./normalize";
+import { TransactionRowSkeleton } from "./TransactionRow";
 
 interface ActivityFeedProps {
   address: string;
-}
-
-function isScamTransfer(tt: BlockscoutTokenTransferItem): boolean {
-  return tt.method?.toLowerCase() === "airdrop";
 }
 
 function FiltersButton({
@@ -32,7 +24,6 @@ function FiltersButton({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // close on outside click
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
@@ -93,61 +84,37 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
   const actQuery = useActivities(address);
 
   const allTxs = useMemo(() => txQuery.data?.pages.flatMap((p) => p.items) ?? [], [txQuery.data]);
-
   const allTokenTransfers = useMemo(
     () => tokenQuery.data?.pages.flatMap((p) => p.items) ?? [],
     [tokenQuery.data],
   );
-
   const activities = useMemo(() => actQuery.data ?? [], [actQuery.data]);
 
-  // Collect tx hashes from regular txs so we can deduplicate token transfers
+  // Deduplicate token transfers whose tx hash already appears in regular txs
   const txHashes = useMemo(() => new Set(allTxs.map((tx) => tx.hash.toLowerCase())), [allTxs]);
 
-  // Merge + sort
-  const feedItems = useMemo(() => {
-    const items: FeedItem[] = [];
-
-    if (filter !== "activities") {
-      for (const tx of allTxs) {
-        items.push({
-          kind: "tx",
-          timestamp: new Date(tx.timestamp).getTime(),
-          data: tx,
-        });
-      }
-      // Only add token transfers whose tx hash isn't already shown as a regular tx
-      for (const tt of allTokenTransfers) {
-        if (txHashes.has(tt.transaction_hash.toLowerCase())) continue;
-        if (hideScams && isScamTransfer(tt)) continue;
-        items.push({
-          kind: "token_transfer",
-          timestamp: new Date(tt.timestamp).getTime(),
-          data: tt,
-        });
-      }
-    }
-
-    if (filter !== "transactions") {
-      for (const act of activities) {
-        items.push({
-          kind: "activity",
-          timestamp: new Date(act.timestamp).getTime(),
-          data: act,
-        });
-      }
-    }
-
-    items.sort((a, b) => b.timestamp - a.timestamp);
+  // Normalize → filter scams → group
+  const normalizedItems = useMemo(() => {
+    const items = [
+      ...allTxs.map((tx) => normalizeTx(tx, address)),
+      ...allTokenTransfers
+        .filter((tt) => !txHashes.has(tt.transaction_hash.toLowerCase()))
+        .map((tt) => normalizeTokenTransfer(tt, address)),
+    ];
+    if (hideScams) return items.filter((i) => !i.isScam);
     return items;
-  }, [allTxs, allTokenTransfers, txHashes, activities, filter, hideScams]);
+  }, [allTxs, allTokenTransfers, txHashes, address, hideScams]);
+
+  const displayItems = useMemo(
+    () => groupFeedItems(normalizedItems, activities, filter),
+    [normalizedItems, activities, filter],
+  );
 
   const nothingYet = txQuery.isLoading && tokenQuery.isLoading && actQuery.isLoading;
   const stillLoading = txQuery.isLoading || tokenQuery.isLoading || actQuery.isLoading;
 
   return (
     <section>
-      {/* Header */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2
           className="text-xl font-bold tracking-tight text-zinc-50"
@@ -161,7 +128,6 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
         </div>
       </div>
 
-      {/* Feed */}
       <div className="overflow-hidden rounded-xl border border-neutral-800 bg-surface">
         {nothingYet ? (
           <div>
@@ -169,23 +135,15 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
               <TransactionRowSkeleton key={i} />
             ))}
           </div>
-        ) : feedItems.length === 0 && !stillLoading ? (
+        ) : displayItems.length === 0 && !stillLoading ? (
           <div className="py-12 text-center text-sm text-zinc-500">No activity yet</div>
         ) : (
           <div>
-            {feedItems.map((item) =>
-              item.kind === "tx" ? (
-                <TransactionRow
-                  key={`tx-${item.data.hash}`}
-                  tx={item.data}
-                  agentAddress={address}
-                />
-              ) : item.kind === "token_transfer" ? (
-                <TokenTransferRow
-                  key={`tt-${item.data.transaction_hash}-${item.data.log_index}`}
-                  transfer={item.data}
-                  agentAddress={address}
-                />
+            {displayItems.map((item) =>
+              item.kind === "single" ? (
+                <FeedItemRow key={item.item.key} item={item.item} />
+              ) : item.kind === "group" ? (
+                <FeedGroupRow key={item.items[0].key} items={item.items} />
               ) : (
                 <ActivityRow key={`act-${item.data.id}`} activity={item.data} />
               ),
@@ -199,7 +157,6 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
           </div>
         )}
 
-        {/* Load more */}
         {(txQuery.hasNextPage || tokenQuery.hasNextPage) && (
           <div className="border-t border-subtle px-4 py-3 text-center">
             <button

@@ -69,7 +69,7 @@ export async function startAgent() {
   console.log(`Cycle interval: ${config.cycleIntervalMs}ms`);
 
   // Create wallet
-  const wallet = await createAgentWallet(config.privateKey, config.chain);
+  const wallet = await createAgentWallet(config.privateKey, config.chain, config.builderCode);
 
   // Create AgentKit with wallet provider + action providers
   const agentKit = await AgentKit.from({

@@ -22,4 +22,5 @@ export const config = {
   chain: process.env.NETWORK === "base" ? base : baseSepolia,
   cycleIntervalMs: parseInt(process.env.CYCLE_INTERVAL_MS || "60000"),
   llmModel: process.env.LLM_MODEL || "anthropic/claude-sonnet-4",
+  builderCode: process.env.BUILDER_CODE || undefined,
 } as const;

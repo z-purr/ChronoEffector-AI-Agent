@@ -67,7 +67,9 @@ def _get_registry(w3: Web3):
     )
 
 
-def set_content_hash(w3: Web3, private_key: str, label: str, content_hash_hex: str) -> str:
+def set_content_hash(
+    w3: Web3, private_key: str, label: str, content_hash_hex: str
+) -> str:
     """Set contentHash on L2Registry for a subname.
 
     content_hash_hex: EIP-1577 encoded hex from the frontend deploy script (0x...).

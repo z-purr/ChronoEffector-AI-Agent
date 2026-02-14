@@ -1,12 +1,12 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { getTransactions } from "../lib/blockscout";
+import { getTokenTransfers } from "../lib/blockscout";
 
-export function useTransactions(address: string | undefined) {
+export function useTokenTransfers(address: string | undefined) {
   return useInfiniteQuery({
-    queryKey: ["transactions", address],
+    queryKey: ["tokenTransfers", address],
     queryFn: async ({ pageParam }) => {
       if (!address) throw new Error("No address");
-      return getTransactions(address, pageParam ?? undefined);
+      return getTokenTransfers(address, pageParam ?? undefined);
     },
     getNextPageParam: (lastPage) => {
       if (!lastPage.next_page_params) return undefined;

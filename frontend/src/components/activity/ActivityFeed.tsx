@@ -1,14 +1,17 @@
 import { useState, useMemo } from "react";
 import { useTransactions } from "../../hooks/useTransactions";
+import { useTokenTransfers } from "../../hooks/useTokenTransfers";
 import { useActivities } from "../../hooks/useActivities";
 import { FeedFilters, type FilterValue } from "./FeedFilters";
 import { TransactionRow, TransactionRowSkeleton } from "./TransactionRow";
+import { TokenTransferRow } from "./TokenTransferRow";
 import { ActivityRow } from "./ActivityRow";
-import type { BlockscoutTx } from "../../lib/blockscout";
+import type { BlockscoutTx, BlockscoutTokenTransferItem } from "../../lib/blockscout";
 import type { AgentActivity } from "../../hooks/useActivities";
 
 type FeedItem =
   | { kind: "tx"; timestamp: number; data: BlockscoutTx }
+  | { kind: "token_transfer"; timestamp: number; data: BlockscoutTokenTransferItem }
   | { kind: "activity"; timestamp: number; data: AgentActivity };
 
 interface ActivityFeedProps {
@@ -19,11 +22,20 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
   const [filter, setFilter] = useState<FilterValue>("all");
 
   const txQuery = useTransactions(address);
+  const tokenQuery = useTokenTransfers(address);
   const actQuery = useActivities(address);
 
   const allTxs = useMemo(() => txQuery.data?.pages.flatMap((p) => p.items) ?? [], [txQuery.data]);
 
+  const allTokenTransfers = useMemo(
+    () => tokenQuery.data?.pages.flatMap((p) => p.items) ?? [],
+    [tokenQuery.data],
+  );
+
   const activities = useMemo(() => actQuery.data ?? [], [actQuery.data]);
+
+  // Collect tx hashes from regular txs so we can deduplicate token transfers
+  const txHashes = useMemo(() => new Set(allTxs.map((tx) => tx.hash.toLowerCase())), [allTxs]);
 
   // Merge + sort
   const feedItems = useMemo(() => {
@@ -36,6 +48,16 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
           timestamp: new Date(tx.timestamp).getTime(),
           data: tx,
         });
+      }
+      // Only add token transfers whose tx hash isn't already shown as a regular tx
+      for (const tt of allTokenTransfers) {
+        if (!txHashes.has(tt.transaction_hash.toLowerCase())) {
+          items.push({
+            kind: "token_transfer",
+            timestamp: new Date(tt.timestamp).getTime(),
+            data: tt,
+          });
+        }
       }
     }
 
@@ -51,10 +73,10 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
 
     items.sort((a, b) => b.timestamp - a.timestamp);
     return items;
-  }, [allTxs, activities, filter]);
+  }, [allTxs, allTokenTransfers, txHashes, activities, filter]);
 
-  const nothingYet = txQuery.isLoading && actQuery.isLoading;
-  const stillLoading = txQuery.isLoading || actQuery.isLoading;
+  const nothingYet = txQuery.isLoading && tokenQuery.isLoading && actQuery.isLoading;
+  const stillLoading = txQuery.isLoading || tokenQuery.isLoading || actQuery.isLoading;
 
   return (
     <section>
@@ -88,6 +110,12 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
                   tx={item.data}
                   agentAddress={address}
                 />
+              ) : item.kind === "token_transfer" ? (
+                <TokenTransferRow
+                  key={`tt-${item.data.transaction_hash}-${item.data.log_index}`}
+                  transfer={item.data}
+                  agentAddress={address}
+                />
               ) : (
                 <ActivityRow key={`act-${item.data.id}`} activity={item.data} />
               ),
@@ -102,15 +130,20 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
         )}
 
         {/* Load more */}
-        {txQuery.hasNextPage && (
+        {(txQuery.hasNextPage || tokenQuery.hasNextPage) && (
           <div className="border-t border-subtle px-4 py-3 text-center">
             <button
               type="button"
-              onClick={() => txQuery.fetchNextPage()}
-              disabled={txQuery.isFetchingNextPage}
+              onClick={() => {
+                if (txQuery.hasNextPage) txQuery.fetchNextPage();
+                if (tokenQuery.hasNextPage) tokenQuery.fetchNextPage();
+              }}
+              disabled={txQuery.isFetchingNextPage || tokenQuery.isFetchingNextPage}
               className="text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-50 disabled:opacity-50"
             >
-              {txQuery.isFetchingNextPage ? "Loading..." : "Load more"}
+              {txQuery.isFetchingNextPage || tokenQuery.isFetchingNextPage
+                ? "Loading..."
+                : "Load more"}
             </button>
           </div>
         )}

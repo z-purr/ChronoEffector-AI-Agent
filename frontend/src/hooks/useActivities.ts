@@ -8,6 +8,7 @@ export function useActivities(address: string | undefined) {
     queryKey: ["activities", address],
     queryFn: (): Promise<AgentActivity[]> => fetchActivities(address!),
     enabled: !!address,
+    staleTime: 30_000,
     refetchInterval: 30_000,
   });
 }

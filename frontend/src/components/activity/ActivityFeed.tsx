@@ -53,14 +53,15 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
     return items;
   }, [allTxs, activities, filter]);
 
-  const isLoading = txQuery.isLoading || actQuery.isLoading;
+  const nothingYet = txQuery.isLoading && actQuery.isLoading;
+  const stillLoading = txQuery.isLoading || actQuery.isLoading;
 
   return (
     <section>
       {/* Header */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2
-          className="text-xl font-bold tracking-tight text-[#fafafa]"
+          className="text-xl font-bold tracking-tight text-zinc-50"
           style={{ fontFamily: "var(--font-heading)" }}
         >
           Activity
@@ -69,15 +70,15 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
       </div>
 
       {/* Feed */}
-      <div className="overflow-hidden rounded-xl border border-[#262626] bg-[#0f0f0f]">
-        {isLoading ? (
+      <div className="overflow-hidden rounded-xl border border-neutral-800 bg-surface">
+        {nothingYet ? (
           <div>
             {Array.from({ length: 5 }).map((_, i) => (
               <TransactionRowSkeleton key={i} />
             ))}
           </div>
-        ) : feedItems.length === 0 ? (
-          <div className="py-12 text-center text-sm text-[#71717a]">No activity yet</div>
+        ) : feedItems.length === 0 && !stillLoading ? (
+          <div className="py-12 text-center text-sm text-zinc-500">No activity yet</div>
         ) : (
           <div>
             {feedItems.map((item) =>
@@ -91,17 +92,23 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
                 <ActivityRow key={`act-${item.data.id}`} activity={item.data} />
               ),
             )}
+            {stillLoading && (
+              <>
+                <TransactionRowSkeleton />
+                <TransactionRowSkeleton />
+              </>
+            )}
           </div>
         )}
 
         {/* Load more */}
         {txQuery.hasNextPage && (
-          <div className="border-t border-[#1a1a1a] px-4 py-3 text-center">
+          <div className="border-t border-subtle px-4 py-3 text-center">
             <button
               type="button"
               onClick={() => txQuery.fetchNextPage()}
               disabled={txQuery.isFetchingNextPage}
-              className="text-xs font-medium text-[#a1a1aa] transition-colors hover:text-[#fafafa] disabled:opacity-50"
+              className="text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-50 disabled:opacity-50"
             >
               {txQuery.isFetchingNextPage ? "Loading..." : "Load more"}
             </button>

@@ -26,14 +26,14 @@ function CopyableAddress({ address }: { address: string }) {
     <button
       type="button"
       onClick={copy}
-      className="group flex items-center gap-1.5 text-sm text-[#a1a1aa] transition-colors hover:text-[#d4d4d8]"
+      className="group flex items-center gap-1.5 text-sm text-zinc-400 transition-colors hover:text-zinc-300"
       style={{ fontFamily: "var(--font-mono)" }}
       title="Copy address"
     >
       <span className="hidden sm:inline">{address}</span>
       <span className="sm:hidden">{truncateAddress(address)}</span>
       {copied ? (
-        <span className="text-[#22c55e] text-xs">Copied!</span>
+        <span className="text-green-500 text-xs">Copied!</span>
       ) : (
         <svg
           className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100"
@@ -61,13 +61,13 @@ function AgentPage() {
     return (
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-10 lg:px-8">
         <div className="mb-8">
-          <div className="h-5 w-96 max-w-full animate-skeleton-pulse rounded bg-[#262626]" />
+          <div className="h-5 w-96 max-w-full animate-skeleton-pulse rounded bg-neutral-800" />
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
-              className={`h-32 animate-skeleton-pulse rounded-xl border border-[#262626] bg-[#141414] ${i === 0 ? "lg:col-span-2" : ""}`}
+              className={`h-32 animate-skeleton-pulse rounded-xl border border-neutral-800 bg-elevated ${i === 0 ? "lg:col-span-2" : ""}`}
               style={{ animationDelay: `${i * 80}ms` }}
             />
           ))}
@@ -81,12 +81,12 @@ function AgentPage() {
     return (
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-10 lg:px-8">
         <h1
-          className="text-2xl font-bold text-[#fafafa]"
+          className="text-2xl font-bold text-zinc-50"
           style={{ fontFamily: "var(--font-heading)" }}
         >
           Agent not found
         </h1>
-        <p className="mt-2 text-sm text-[#a1a1aa]">
+        <p className="mt-2 text-sm text-zinc-400">
           No agent registered with label &ldquo;{label}&rdquo;.
         </p>
       </div>
@@ -103,7 +103,7 @@ function AgentPage() {
           href={`https://basescan.org/address/${agent.owner}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-[#71717a] transition-colors hover:text-[#a1a1aa]"
+          className="inline-flex items-center gap-1 text-xs text-zinc-500 transition-colors hover:text-zinc-400"
         >
           Basescan
           <svg

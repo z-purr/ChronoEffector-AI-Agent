@@ -9,7 +9,7 @@ const queryClient = new QueryClient({
 export const Route = createRootRoute({
   component: () => (
     <QueryClientProvider client={queryClient}>
-      <div className="dark min-h-screen bg-[#0a0a0a] text-[#fafafa]">
+      <div className="dark min-h-screen bg-neutral-950 text-zinc-50">
         <Header />
         <main>
           <Outlet />

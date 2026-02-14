@@ -48,8 +48,8 @@ export function TreasuryGrid({ address }: TreasuryGridProps) {
       <BalanceCard
         label="ETH"
         value={balances.data?.eth ?? "0"}
-        accentColor="#818cf8"
-        icon={<span style={{ color: "#818cf8" }}>&#9670;</span>}
+        accentBorderClass="border-l-indigo-400"
+        icon={<span className="text-indigo-400">&#9670;</span>}
         index={1}
       />
 
@@ -57,8 +57,8 @@ export function TreasuryGrid({ address }: TreasuryGridProps) {
       <BalanceCard
         label="USDC"
         value={balances.data?.usdc ?? "0"}
-        accentColor="#10b981"
-        icon={<span style={{ color: "#10b981" }}>&#9679;</span>}
+        accentBorderClass="border-l-emerald-500"
+        icon={<span className="text-emerald-500">&#9679;</span>}
         index={2}
       />
     </div>

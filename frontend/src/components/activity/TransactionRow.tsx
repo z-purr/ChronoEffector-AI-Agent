@@ -40,7 +40,7 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
   else methodLabel = tx.method || "Transfer";
 
   return (
-    <div className="group flex items-center gap-3 border-b border-[#1a1a1a] px-3 py-3 sm:px-4 transition-colors hover:bg-[#141414]">
+    <div className="group flex items-center gap-3 border-b border-subtle px-3 py-3 sm:px-4 transition-colors hover:bg-elevated">
       {/* Icon */}
       {isSuperfluid ? (
         <img src="/icons/aleph.png" alt="ALEPH" className="h-7 w-7 shrink-0 rounded-md" />
@@ -49,7 +49,7 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
       ) : (
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
-            isSent ? "bg-[#f43f5e]/10 text-[#f43f5e]" : "bg-[#22c55e]/10 text-[#22c55e]"
+            isSent ? "bg-rose-500/10 text-rose-500" : "bg-green-500/10 text-green-500"
           }`}
         >
           {isSent ? "\u2191" : "\u2193"}
@@ -60,15 +60,15 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
       <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3">
         {/* Label + context */}
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#fafafa]">{methodLabel}</span>
+          <span className="text-sm font-medium text-zinc-50">{methodLabel}</span>
           {!isSuperfluid && !isRegistrar && !isRegistry && counterparty && (
-            <span className="text-xs text-[#71717a]" style={{ fontFamily: "var(--font-mono)" }}>
+            <span className="text-xs text-zinc-500" style={{ fontFamily: "var(--font-mono)" }}>
               {isSent ? "to" : "from"}{" "}
               <a
                 href={`https://basescan.org/address/${counterparty}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#71717a] transition-colors hover:text-[#a1a1aa] hover:underline"
+                className="text-zinc-500 transition-colors hover:text-zinc-400 hover:underline"
               >
                 {truncateAddress(counterparty)}
               </a>
@@ -80,15 +80,15 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
       {/* Value */}
       {valueDisplay !== "0" && valueDisplay !== "0.0000" && (
         <div className="shrink-0 text-right">
-          <span className="text-sm text-[#d4d4d8]" style={{ fontFamily: "var(--font-mono)" }}>
+          <span className="text-sm text-zinc-300" style={{ fontFamily: "var(--font-mono)" }}>
             {valueDisplay}
           </span>
-          <span className="ml-1 text-xs text-[#71717a]">{symbolDisplay}</span>
+          <span className="ml-1 text-xs text-zinc-500">{symbolDisplay}</span>
         </div>
       )}
 
       {/* Timestamp */}
-      <span className="hidden shrink-0 text-xs text-[#71717a] sm:block">
+      <span className="hidden shrink-0 text-xs text-zinc-500 sm:block">
         {relativeTime(tx.timestamp)}
       </span>
 
@@ -97,7 +97,7 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
         href={`https://basescan.org/tx/${tx.hash}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="shrink-0 text-[#52525b] transition-colors hover:text-[#a1a1aa]"
+        className="shrink-0 text-zinc-600 transition-colors hover:text-zinc-400"
         title="View on Basescan"
       >
         <svg
@@ -118,13 +118,13 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
 
 export function TransactionRowSkeleton() {
   return (
-    <div className="flex items-center gap-3 border-b border-[#1a1a1a] px-3 py-3 sm:px-4">
-      <div className="h-7 w-7 animate-skeleton-pulse rounded-md bg-[#262626]" />
+    <div className="flex items-center gap-3 border-b border-subtle px-3 py-3 sm:px-4">
+      <div className="h-7 w-7 animate-skeleton-pulse rounded-md bg-neutral-800" />
       <div className="flex-1 space-y-1">
-        <div className="h-4 w-32 animate-skeleton-pulse rounded bg-[#262626]" />
-        <div className="h-3 w-20 animate-skeleton-pulse rounded bg-[#262626]" />
+        <div className="h-4 w-32 animate-skeleton-pulse rounded bg-neutral-800" />
+        <div className="h-3 w-20 animate-skeleton-pulse rounded bg-neutral-800" />
       </div>
-      <div className="h-4 w-16 animate-skeleton-pulse rounded bg-[#262626]" />
+      <div className="h-4 w-16 animate-skeleton-pulse rounded bg-neutral-800" />
     </div>
   );
 }

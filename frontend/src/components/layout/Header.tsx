@@ -31,7 +31,7 @@ export function Header() {
   const homeSearch = isSubdomain ? { noredirect: "" } : undefined;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[#262626] bg-[#0a0a0a]/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         {/* Wordmark */}
         {agentLabel ? (
@@ -39,7 +39,7 @@ export function Header() {
             <Link
               to="/"
               search={homeSearch}
-              className="flex items-center gap-2 text-[#a1a1aa] transition-colors hover:text-[#fafafa]"
+              className="flex items-center gap-2 text-zinc-400 transition-colors hover:text-zinc-50"
             >
               <CrownIcon className="h-4 w-4" />
               <span
@@ -51,24 +51,24 @@ export function Header() {
             </Link>
 
             {/* Separator */}
-            <svg viewBox="0 0 8 20" className="h-5 w-2 text-[#3f3f46]">
+            <svg viewBox="0 0 8 20" className="h-5 w-2 text-zinc-700">
               <line x1="7" y1="0" x2="1" y2="20" stroke="currentColor" strokeWidth={1.5} />
             </svg>
 
             {/* Agent ENS name */}
             <span
-              className="truncate text-sm font-semibold tracking-tight text-[#fafafa]"
+              className="truncate text-sm font-semibold tracking-tight text-zinc-50"
               style={{ fontFamily: "var(--font-heading)" }}
             >
               {decodeURIComponent(agentLabel)}
-              <span className="text-[#a1a1aa]">.basileus-agent.eth</span>
+              <span className="text-zinc-400">.basileus-agent.eth</span>
             </span>
           </>
         ) : (
           <Link to="/" search={homeSearch} className="flex items-center gap-2.5">
-            <CrownIcon className="h-5 w-5 text-[#fafafa]" />
+            <CrownIcon className="h-5 w-5 text-zinc-50" />
             <span
-              className="text-xl font-bold tracking-tight text-[#fafafa]"
+              className="text-xl font-bold tracking-tight text-zinc-50"
               style={{ fontFamily: "var(--font-heading)" }}
             >
               Basileus

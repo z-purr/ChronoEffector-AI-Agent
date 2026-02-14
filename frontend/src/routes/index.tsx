@@ -16,28 +16,29 @@ export const Route = createFileRoute("/")({
 
 // --- Status helpers ---
 
-const STATUS_CONFIG: Record<AgentStatus, { label: string; color: string; dotClass: string }> = {
-  healthy: {
-    label: "Active",
-    color: "#22c55e",
-    dotClass: "bg-[#22c55e] shadow-[0_0_6px_#22c55e]",
-  },
-  warning: {
-    label: "Warning",
-    color: "#eab308",
-    dotClass: "bg-[#eab308] shadow-[0_0_6px_#eab308]",
-  },
-  inactive: {
-    label: "Inactive",
-    color: "#a1a1aa",
-    dotClass: "bg-[#a1a1aa] shadow-[0_0_6px_#a1a1aa]",
-  },
-  dead: {
-    label: "Critical",
-    color: "#ef4444",
-    dotClass: "bg-[#ef4444] shadow-[0_0_6px_#ef4444]",
-  },
-};
+const STATUS_CONFIG: Record<AgentStatus, { label: string; colorClass: string; dotClass: string }> =
+  {
+    healthy: {
+      label: "Active",
+      colorClass: "text-green-500",
+      dotClass: "bg-green-500 shadow-[0_0_6px_#22c55e]",
+    },
+    warning: {
+      label: "Warning",
+      colorClass: "text-yellow-500",
+      dotClass: "bg-yellow-500 shadow-[0_0_6px_#eab308]",
+    },
+    inactive: {
+      label: "Inactive",
+      colorClass: "text-zinc-400",
+      dotClass: "bg-zinc-400 shadow-[0_0_6px_#a1a1aa]",
+    },
+    dead: {
+      label: "Critical",
+      colorClass: "text-red-500",
+      dotClass: "bg-red-500 shadow-[0_0_6px_#ef4444]",
+    },
+  };
 
 function truncateAddress(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -60,26 +61,25 @@ function AgentCard({ agent, index }: { agent: Agent; index: number }) {
   return (
     <Link to="/agent/$label" params={{ label: agent.label }} className="block">
       <Card
-        className="animate-card-reveal group cursor-pointer border-[#262626] bg-[#141414] py-5 transition-all duration-200 hover:scale-[1.02] hover:border-[#3f3f46]"
+        className="animate-card-reveal group cursor-pointer border-neutral-800 bg-elevated py-5 transition-all duration-200 hover:scale-[1.02] hover:border-zinc-700"
         style={{ animationDelay: `${index * 50}ms` }}
       >
         <CardHeader className="gap-3">
           <div className="flex items-center justify-between">
             <CardTitle
-              className="text-lg tracking-tight text-[#fafafa]"
+              className="text-lg tracking-tight text-zinc-50"
               style={{ fontFamily: "var(--font-heading)" }}
             >
               {agent.label}
-              <span className="text-[#a1a1aa]">.basileus-agent.eth</span>
+              <span className="text-zinc-400">.basileus-agent.eth</span>
             </CardTitle>
 
             {isLoading ? (
-              <div className="h-5 w-16 animate-skeleton-pulse rounded-full bg-[#262626]" />
+              <div className="h-5 w-16 animate-skeleton-pulse rounded-full bg-neutral-800" />
             ) : (
               <Badge
                 variant="outline"
-                className="gap-1.5 border-[#262626] px-2 py-0.5 text-[11px]"
-                style={{ color: cfg.color }}
+                className={`gap-1.5 border-neutral-800 px-2 py-0.5 text-[11px] ${cfg.colorClass}`}
               >
                 <span className={`inline-block h-2 w-2 rounded-full ${cfg.dotClass}`} />
                 {cfg.label}
@@ -88,7 +88,7 @@ function AgentCard({ agent, index }: { agent: Agent; index: number }) {
           </div>
 
           <CardDescription
-            className="text-xs text-[#a1a1aa]"
+            className="text-xs text-zinc-400"
             style={{ fontFamily: "var(--font-mono)" }}
           >
             {truncateAddress(agent.owner)}
@@ -97,9 +97,9 @@ function AgentCard({ agent, index }: { agent: Agent; index: number }) {
 
         <CardContent className="pt-0">
           {isLoading ? (
-            <div className="h-4 w-24 animate-skeleton-pulse rounded bg-[#262626]" />
+            <div className="h-4 w-24 animate-skeleton-pulse rounded bg-neutral-800" />
           ) : (
-            <span className="text-xs text-[#a1a1aa]" style={{ fontFamily: "var(--font-mono)" }}>
+            <span className="text-xs text-zinc-400" style={{ fontFamily: "var(--font-mono)" }}>
               {formatHoursLeft(hoursLeft)}
             </span>
           )}
@@ -114,18 +114,18 @@ function AgentCard({ agent, index }: { agent: Agent; index: number }) {
 function SkeletonCard({ index }: { index: number }) {
   return (
     <Card
-      className="animate-card-reveal border-[#262626] bg-[#141414] py-5"
+      className="animate-card-reveal border-neutral-800 bg-elevated py-5"
       style={{ animationDelay: `${index * 50}ms` }}
     >
       <CardHeader className="gap-3">
         <div className="flex items-center justify-between">
-          <div className="h-5 w-48 animate-skeleton-pulse rounded bg-[#262626]" />
-          <div className="h-5 w-16 animate-skeleton-pulse rounded-full bg-[#262626]" />
+          <div className="h-5 w-48 animate-skeleton-pulse rounded bg-neutral-800" />
+          <div className="h-5 w-16 animate-skeleton-pulse rounded-full bg-neutral-800" />
         </div>
-        <div className="h-3.5 w-32 animate-skeleton-pulse rounded bg-[#262626]" />
+        <div className="h-3.5 w-32 animate-skeleton-pulse rounded bg-neutral-800" />
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="h-3.5 w-20 animate-skeleton-pulse rounded bg-[#262626]" />
+        <div className="h-3.5 w-20 animate-skeleton-pulse rounded bg-neutral-800" />
       </CardContent>
     </Card>
   );
@@ -141,7 +141,7 @@ function HubPage() {
       {/* Subtitle */}
       <div className="mb-8">
         <p
-          className="text-sm tracking-wide text-[#a1a1aa]"
+          className="text-sm tracking-wide text-zinc-400"
           style={{ fontFamily: "var(--font-heading)" }}
         >
           Autonomous Agent Observatory
@@ -150,7 +150,7 @@ function HubPage() {
 
       {/* Grid */}
       {isError ? (
-        <p className="text-[#ef4444]">Failed to load agents.</p>
+        <p className="text-red-500">Failed to load agents.</p>
       ) : isLoading ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -165,10 +165,10 @@ function HubPage() {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <p className="text-lg text-[#a1a1aa]" style={{ fontFamily: "var(--font-heading)" }}>
+          <p className="text-lg text-zinc-400" style={{ fontFamily: "var(--font-heading)" }}>
             No agents registered yet
           </p>
-          <p className="mt-1 text-sm text-[#52525b]">
+          <p className="mt-1 text-sm text-zinc-600">
             Agents will appear here once registered on-chain.
           </p>
         </div>

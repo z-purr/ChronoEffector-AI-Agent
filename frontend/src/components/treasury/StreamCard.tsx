@@ -9,13 +9,13 @@ interface StreamCardProps {
   hoursLeft: number;
 }
 
-function hoursLeftLabel(h: number): { text: string; color: string } {
-  if (!isFinite(h)) return { text: "Inactive", color: "#a1a1aa" };
-  if (h <= 0) return { text: "Depleted", color: "#ef4444" };
-  if (h < 2) return { text: `${Math.round(h * 60)}m remaining`, color: "#ef4444" };
-  if (h < 24) return { text: `${Math.round(h)}h remaining`, color: "#eab308" };
-  if (h < 48) return { text: `${Math.round(h)}h remaining`, color: "#22c55e" };
-  return { text: `${Math.round(h / 24)}d remaining`, color: "#22c55e" };
+function hoursLeftLabel(h: number): { text: string; colorClass: string } {
+  if (!isFinite(h)) return { text: "Inactive", colorClass: "text-zinc-400" };
+  if (h <= 0) return { text: "Depleted", colorClass: "text-red-500" };
+  if (h < 2) return { text: `${Math.round(h * 60)}m remaining`, colorClass: "text-red-500" };
+  if (h < 24) return { text: `${Math.round(h)}h remaining`, colorClass: "text-yellow-500" };
+  if (h < 48) return { text: `${Math.round(h)}h remaining`, colorClass: "text-green-500" };
+  return { text: `${Math.round(h / 24)}d remaining`, colorClass: "text-green-500" };
 }
 
 export function StreamCard({
@@ -33,20 +33,22 @@ export function StreamCard({
 
   return (
     <Card
-      className="animate-card-reveal relative col-span-1 overflow-hidden border-[#262626] bg-[#141414] py-6 lg:col-span-2"
+      className="animate-card-reveal relative col-span-1 overflow-hidden border-neutral-800 bg-elevated py-6 lg:col-span-2"
       style={{ animationDelay: "0ms" }}
     >
       {/* Ambient amber glow at top */}
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-px"
-        style={{ background: "linear-gradient(90deg, transparent, #f59e0b40, transparent)" }}
+        style={{
+          background: "linear-gradient(90deg, transparent, rgb(245 158 11 / 0.25), transparent)",
+        }}
       />
 
       <div className="px-6">
         {/* Label */}
         <div className="flex items-center gap-2">
           <span
-            className="text-[11px] uppercase tracking-widest text-[#a1a1aa]"
+            className="text-[11px] uppercase tracking-widest text-zinc-400"
             style={{ fontFamily: "var(--font-body)" }}
           >
             ALEPH Balance &bull; Streaming
@@ -55,7 +57,7 @@ export function StreamCard({
             href={`https://app.superfluid.org/?view=${address}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[11px] text-[#52525b] transition-colors hover:text-[#a1a1aa]"
+            className="inline-flex items-center gap-1 text-[11px] text-zinc-600 transition-colors hover:text-zinc-400"
           >
             Superfluid
             <svg
@@ -74,16 +76,16 @@ export function StreamCard({
 
         {/* Live-ticking balance */}
         <p
-          className="mt-4 text-3xl font-medium leading-none text-[#fafafa] md:text-4xl"
+          className="mt-4 text-3xl font-medium leading-none text-zinc-50 md:text-4xl"
           style={{
             fontFamily: "var(--font-mono)",
             fontVariantNumeric: "tabular-nums",
-            textShadow: "0 0 20px rgba(245, 158, 11, 0.3), 0 0 40px rgba(245, 158, 11, 0.1)",
+            textShadow: "0 0 20px rgb(245 158 11 / 0.3), 0 0 40px rgb(245 158 11 / 0.1)",
           }}
         >
           <span ref={intRef}>0</span>
-          <span className="text-[#a1a1aa]">.</span>
-          <span ref={decRef} className="text-[#d4d4d8]">
+          <span className="text-zinc-400">.</span>
+          <span ref={decRef} className="text-zinc-300">
             000000
           </span>
         </p>
@@ -91,16 +93,16 @@ export function StreamCard({
         {/* Flow rate + hours left */}
         <div className="mt-4 flex flex-wrap items-center gap-4">
           <span
-            className="flex items-center gap-1.5 text-sm text-[#a1a1aa]"
+            className="flex items-center gap-1.5 text-sm text-zinc-400"
             style={{ fontFamily: "var(--font-mono)" }}
           >
-            <span className="text-[#f59e0b]">&darr;</span>
+            <span className="text-amber-500">&darr;</span>
             {rateDisplay} ALEPH/hr
           </span>
 
           <span
-            className="text-sm font-medium"
-            style={{ fontFamily: "var(--font-mono)", color: hlInfo.color }}
+            className={`text-sm font-medium ${hlInfo.colorClass}`}
+            style={{ fontFamily: "var(--font-mono)" }}
           >
             {hlInfo.text}
           </span>
@@ -113,15 +115,15 @@ export function StreamCard({
 export function StreamCardSkeleton() {
   return (
     <Card
-      className="animate-card-reveal border-[#262626] bg-[#141414] py-6 lg:col-span-2"
+      className="animate-card-reveal border-neutral-800 bg-elevated py-6 lg:col-span-2"
       style={{ animationDelay: "0ms" }}
     >
       <div className="px-6">
-        <div className="h-3.5 w-40 animate-skeleton-pulse rounded bg-[#262626]" />
-        <div className="mt-4 h-10 w-64 animate-skeleton-pulse rounded bg-[#262626]" />
+        <div className="h-3.5 w-40 animate-skeleton-pulse rounded bg-neutral-800" />
+        <div className="mt-4 h-10 w-64 animate-skeleton-pulse rounded bg-neutral-800" />
         <div className="mt-4 flex gap-4">
-          <div className="h-4 w-28 animate-skeleton-pulse rounded bg-[#262626]" />
-          <div className="h-4 w-20 animate-skeleton-pulse rounded bg-[#262626]" />
+          <div className="h-4 w-28 animate-skeleton-pulse rounded bg-neutral-800" />
+          <div className="h-4 w-20 animate-skeleton-pulse rounded bg-neutral-800" />
         </div>
       </div>
     </Card>

@@ -12,14 +12,15 @@ export interface ToolExecution {
   meta?: Record<string, string>;
 }
 
+export type ActivityType = "inventory" | "survival" | "strategy" | "error";
+
 export interface AgentActivity {
+  summary: string;
   model: string;
-  content: string;
+  cycleId: string;
   tools?: ToolExecution[];
   txHashes?: string[];
 }
-
-export type ActivityType = "heartbeat" | "strategy" | "error";
 
 let alephClient: AuthenticatedAlephHttpClient | null = null;
 

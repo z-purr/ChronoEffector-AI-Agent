@@ -2,11 +2,13 @@ from web3 import Web3
 from eth_account import Account
 
 from basileus.chain.constants import (
+    BUILDER_CODE,
     L2_REGISTRAR_ADDRESS,
     L2_REGISTRAR_ABI,
     L2_REGISTRY_ADDRESS,
     L2_REGISTRY_ABI,
 )
+from basileus.chain.builder_code import builder_code_suffix
 
 
 def _get_registrar(w3: Web3):
@@ -50,6 +52,11 @@ def register_subname(w3: Web3, private_key: str, label: str, owner: str) -> str:
         }
     )
 
+    if BUILDER_CODE:
+        suffix = builder_code_suffix(BUILDER_CODE)
+        tx["data"] += suffix.hex()
+        tx["gas"] += len(suffix) * 16
+
     signed = account.sign_transaction(tx)
     tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
     receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
@@ -91,6 +98,11 @@ def set_content_hash(
             "gas": call.estimate_gas({"from": account.address}),
         }
     )
+
+    if BUILDER_CODE:
+        suffix = builder_code_suffix(BUILDER_CODE)
+        tx["data"] += suffix.hex()
+        tx["gas"] += len(suffix) * 16
 
     signed = account.sign_transaction(tx)
     tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)

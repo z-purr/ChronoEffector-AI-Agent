@@ -37,7 +37,7 @@ from basileus.chain.superfluid import (
 )
 from basileus.chain.balance import wait_for_usdc_funding
 from basileus.chain.wallet import generate_wallet, load_existing_wallet
-from basileus.chain.constants import BASE_RPC_URL, FRONTEND_CONTENT_HASH
+from basileus.chain.constants import BASE_RPC_URL, BUILDER_CODE, FRONTEND_CONTENT_HASH
 from basileus.chain.ens import (
     check_existing_subname,
     check_label_available,
@@ -93,10 +93,8 @@ async def deploy_command(
                 address, private_key = generate_wallet()
                 rprint(f"  [green]Wallet generated:[/green] {address}")
                 env_vars = {
-                    "BASE_CHAIN_WALLET_KEY": private_key,
-                    "NETWORK": "base",
-                    "CYCLE_INTERVAL_MS": "60000",
-                    "LLM_MODEL": "anthropic/claude-sonnet-4",
+                    "WALLET_PRIVATE_KEY": private_key,
+                    "BUILDER_CODE": BUILDER_CODE,
                 }
         except Exception as e:
             _fail("Setting up Base wallet", e)

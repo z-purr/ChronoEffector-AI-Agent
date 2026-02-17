@@ -17,7 +17,7 @@ def load_existing_wallet(agent_dir: Path) -> tuple[str, str] | None:
         if not env_path.exists():
             continue
         values = dotenv_values(env_path)
-        pk = values.get("BASE_CHAIN_WALLET_KEY")
+        pk = values.get("WALLET_PRIVATE_KEY")
         if pk:
             address = Account.from_key(pk).address
             return address, pk

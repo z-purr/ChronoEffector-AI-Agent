@@ -1,3 +1,6 @@
+# ERC-8021 builder code (Base)
+BUILDER_CODE = "bc_kj26kx76"
+
 # Base mainnet
 BASE_RPC_URL = "https://mainnet.base.org"
 BASE_CHAIN_ID = 8453

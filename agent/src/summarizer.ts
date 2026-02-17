@@ -25,8 +25,8 @@ ${toolSummary ? `Tools called: ${toolSummary}` : "No tools called."}`;
       { role: "user", content: prompt },
     ]);
     return result.choices[0].message.content ?? reasoning.slice(0, 200);
-  } catch {
-    // Fallback: truncate reasoning
+  } catch (err) {
+    console.warn(`[summarizer] Failed to summarize ${phaseType}:`, err);
     return reasoning.slice(0, 200);
   }
 }

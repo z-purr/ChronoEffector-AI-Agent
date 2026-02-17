@@ -295,11 +295,16 @@ export async function startAgent() {
 
   state = await runCycle(state, wallet, llmClient, toolSets);
 
-  setInterval(async () => {
-    try {
-      state = await runCycle(state, wallet, llmClient, toolSets);
-    } catch (err) {
-      console.error("[agent] Cycle failed:", err);
-    }
-  }, config.cycleIntervalMs);
+  // Use setTimeout loop to prevent re-entrance (cycles can exceed interval)
+  const scheduleNext = () => {
+    setTimeout(async () => {
+      try {
+        state = await runCycle(state, wallet, llmClient, toolSets);
+      } catch (err) {
+        console.error("[agent] Cycle failed:", err);
+      }
+      scheduleNext();
+    }, config.cycleIntervalMs);
+  };
+  scheduleNext();
 }

@@ -35,7 +35,12 @@ const typeConfig: Record<
 
 export function ActivityGroupRow({ activities }: { activities: AgentActivity[] }) {
   const [expanded, setExpanded] = useState(false);
-  const last = activities[activities.length - 1];
+  // Show the most significant phase's badge (strategy > survival > error > inventory)
+  const phasePriority: Record<string, number> = { strategy: 0, survival: 1, error: 2, inventory: 3 };
+  const primary = [...activities].sort(
+    (a, b) => (phasePriority[a.type] ?? 9) - (phasePriority[b.type] ?? 9),
+  )[0];
+  const last = primary;
   const config = typeConfig[last.type];
 
   return (

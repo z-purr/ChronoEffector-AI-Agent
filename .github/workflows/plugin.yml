@@ -1,0 +1,54 @@
+name: Plugin CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  plugin-format:
+    name: Plugin - Format
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: basileus-agentkit-plugin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: basileus-agentkit-plugin/.nvmrc
+          cache: npm
+          cache-dependency-path: basileus-agentkit-plugin/package-lock.json
+      - run: npm ci
+      - run: npm run format:check
+
+  plugin-lint:
+    name: Plugin - Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: basileus-agentkit-plugin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: basileus-agentkit-plugin/.nvmrc
+          cache: npm
+          cache-dependency-path: basileus-agentkit-plugin/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
+  plugin-build:
+    name: Plugin - Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: basileus-agentkit-plugin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: basileus-agentkit-plugin/.nvmrc
+          cache: npm
+          cache-dependency-path: basileus-agentkit-plugin/package-lock.json
+      - run: npm ci
+      - run: npm run build

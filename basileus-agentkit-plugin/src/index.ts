@@ -9,4 +9,3 @@ export { compoundFixedProvider } from "./actions/compound/index.js";
 export { createAgentWallet, getBalances } from "./wallet.js";
 export type { WalletInfo } from "./wallet.js";
 export type { ToolExecution, ActivityType, AgentActivity } from "./types.js";
-

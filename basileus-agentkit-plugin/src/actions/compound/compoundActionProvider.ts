@@ -8,7 +8,6 @@
  * Uses customActionProvider (no decorators) so tsx/esbuild can run it.
  * TODO: Remove this directory once agentkit merges the fix.
  */
-import { z } from "zod";
 import { encodeFunctionData, formatUnits, parseUnits, erc20Abi } from "viem";
 import { customActionProvider, EvmWalletProvider } from "@coinbase/agentkit";
 import { COMET_ABI } from "./constants.js";

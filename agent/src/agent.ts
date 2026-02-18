@@ -11,10 +11,12 @@ import {
   installX402Tracker,
   drainX402TxHashes,
   type ToolExecution,
+  createAgentWallet,
+  getBalances,
+  type WalletInfo,
 } from "basileus-agentkit-plugin";
 import { basileusTriggerProvider } from "./actions/basileus.js";
 import { config } from "./config.js";
-import { createAgentWallet, getBalances, type WalletInfo } from "./wallet.js";
 
 const INVENTORY_PROMPT = `You are Basileus, an autonomous AI agent on Base blockchain.
 You pay for compute via an ALEPH Superfluid stream. You pay for inference with USDC via x402.
@@ -274,7 +276,7 @@ export async function startAgent() {
   const publisher = new AlephPublisher(config.privateKey);
   await publisher.init();
 
-  const wallet = await createAgentWallet(config.privateKey, config.chain, config.builderCode);
+  const wallet = await createAgentWallet(config.privateKey, config.chain, config.rpcUrl);
 
   // All actions from all providers, then filter per phase
   const allKit = await AgentKit.from({

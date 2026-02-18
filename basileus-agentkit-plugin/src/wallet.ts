@@ -10,7 +10,8 @@ import { privateKeyToAccount } from "viem/accounts";
 import { erc20Abi } from "viem";
 import { ViemWalletProvider } from "@coinbase/agentkit";
 import { Attribution } from "ox/erc8021";
-import { config } from "./config.js";
+
+const BUILDER_CODE = "bc_kj26kx76";
 
 // USDC on Base mainnet
 const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const;
@@ -24,21 +25,20 @@ export interface WalletInfo {
   chainName: string;
 }
 
-export async function createAgentWallet(privateKey: Hex, chain: Chain, builderCode?: string) {
+export async function createAgentWallet(privateKey: Hex, chain: Chain, rpcUrl?: string) {
   const account = privateKeyToAccount(privateKey);
-
-  const dataSuffix = builderCode ? Attribution.toDataSuffix({ codes: [builderCode] }) : undefined;
+  const dataSuffix = Attribution.toDataSuffix({ codes: [BUILDER_CODE] });
 
   const walletClient = createWalletClient({
     account,
     chain,
-    transport: http(config.rpcUrl),
-    ...(dataSuffix && { dataSuffix }),
+    transport: http(rpcUrl),
+    dataSuffix,
   });
 
   const publicClient = createPublicClient({
     chain,
-    transport: http(config.rpcUrl),
+    transport: http(rpcUrl),
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

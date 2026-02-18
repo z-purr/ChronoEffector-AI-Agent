@@ -40,6 +40,10 @@
     "./actions/compound": {
       "types": "./dist/actions/compound/index.d.ts",
       "import": "./dist/actions/compound/index.js"
+    },
+    "./wallet": {
+      "types": "./dist/wallet.d.ts",
+      "import": "./dist/wallet.js"
     }
   },
   "scripts": {
@@ -56,6 +60,7 @@
     "@aleph-sdk/ethereum": "^1.5.0",
     "@aleph-sdk/message": "^1.6.3",
     "decimal.js": "^10.0.0",
+    "ox": "^0.12.4",
     "zod": "^3.0.0",
     "zod-to-json-schema": "^3.25.0"
   },
@@ -64,6 +69,6 @@
     "@coinbase/agentkit": "^0.10.4",
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0",
-    "viem": "^2.46.2"
+    "viem": "^2.45.3"
   }
 }

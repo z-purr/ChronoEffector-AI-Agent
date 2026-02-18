@@ -17,7 +17,6 @@
     "@coinbase/agentkit": "^0.10.4",
     "basileus-agentkit-plugin": "file:../basileus-agentkit-plugin",
     "dotenv": "^16.4.7",
-    "ox": "^0.12.1",
     "viem": "^2.45.3"
   },
   "devDependencies": {

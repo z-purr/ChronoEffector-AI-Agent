@@ -24,11 +24,11 @@ export const basileusTriggerProvider = customActionProvider<EvmWalletProvider>([
   {
     name: "trigger_strategy",
     description:
-      "Call this when the agent is healthy and there is excess capital (idle USDC + Compound USDC beyond safety margin) to deploy. This triggers a strategy agent to manage the capital.",
+      "Call this when the agent is healthy and there is excess capital (idle USDC + Compound USDC beyond idle target) to deploy. This triggers a strategy agent to manage the capital.",
     schema: z.object({
       excessAmount: z
         .string()
-        .describe("Total excess USDC available for deployment (idle + compound - safety margin)"),
+        .describe("Total excess USDC available for deployment (idle + compound - idle target)"),
       idleUsdc: z.string().describe("Current idle USDC balance"),
       compoundUsdc: z.string().describe("Current USDC supplied in Compound"),
     }),

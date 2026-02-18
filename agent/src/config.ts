@@ -23,7 +23,8 @@ export const config = {
   cycleIntervalMs: parseInt(process.env.CYCLE_INTERVAL_MS || "900000"),
   heartbeatModel: process.env.LLM_HEARTBEAT_MODEL || "nvidia/gpt-oss-120b",
   strategyModel: process.env.LLM_STRATEGY_MODEL || "anthropic/claude-sonnet-4",
-  usdcSafetyMargin: parseFloat(process.env.USDC_SAFETY_MARGIN || "5"),
+  usdcSurvivalThreshold: parseFloat(process.env.USDC_SURVIVAL_THRESHOLD || "3"),
+  usdcIdleTarget: parseFloat(process.env.USDC_IDLE_TARGET || "5"),
   builderCode: process.env.BUILDER_CODE || undefined,
   rpcUrl: process.env.RPC_URL || undefined,
 } as const;

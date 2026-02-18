@@ -1,15 +1,20 @@
 import { type Tool } from "@blockrun/llm";
 import { AgentKit, erc20ActionProvider, walletActionProvider } from "@coinbase/agentkit";
-import { alephActionProvider } from "./actions/aleph.js";
+import {
+  AlephPublisher,
+  createAlephActionProvider,
+  compoundFixedProvider,
+  createLLMClient,
+  runAgentLoop,
+  actionsToTools,
+  summarizePhase,
+  installX402Tracker,
+  drainX402TxHashes,
+  type ToolExecution,
+} from "basileus-agentkit-plugin";
 import { basileusTriggerProvider } from "./actions/basileus.js";
-import { compoundFixedProvider } from "./actions/compound/index.js";
-import { initAlephPublisher, publishActivity, type ToolExecution } from "./aleph-publisher.js";
 import { config } from "./config.js";
-import { createLLMClient, runAgentLoop } from "./llm.js";
-import { summarizePhase } from "./summarizer.js";
-import { actionsToTools } from "./tools.js";
 import { createAgentWallet, getBalances, type WalletInfo } from "./wallet.js";
-import { drainX402TxHashes, installX402Tracker } from "./x402-tracker.js";
 
 const INVENTORY_PROMPT = `You are Basileus, an autonomous AI agent on Base blockchain.
 You pay for compute via an ALEPH Superfluid stream. You pay for inference with USDC via x402.
@@ -70,15 +75,21 @@ interface TriggerInfo {
   args: Record<string, string>;
 }
 
+interface ToolSet {
+  tools: Tool[];
+  exec: (name: string, argsJson: string) => Promise<string>;
+}
+
 export async function runCycle(
   state: AgentState,
   wallet: Awaited<ReturnType<typeof createAgentWallet>>,
   llmClient: ReturnType<typeof createLLMClient>,
   toolSets: {
-    inventory: Tool[];
-    survival: Tool[];
-    strategy: Tool[];
+    inventory: ToolSet;
+    survival: ToolSet;
+    strategy: ToolSet;
   },
+  publisher: AlephPublisher,
 ): Promise<AgentState> {
   console.log(`\n--- Cycle ${state.cycle + 1} ---`);
   const cycleId = crypto.randomUUID();
@@ -104,17 +115,18 @@ Check health and capital. Decide: trigger_survival or trigger_strategy.`;
       config.heartbeatModel,
       INVENTORY_PROMPT,
       inventoryUserPrompt,
-      toolSets.inventory,
+      toolSets.inventory.tools,
+      toolSets.inventory.exec,
     );
 
     phases.push({
       type: "inventory",
       model: config.heartbeatModel,
-      reasoning: result.reasoning,
+      reasoning: result.response,
       toolExecutions: result.toolExecutions,
     });
 
-    console.log(`[inventory] ${result.reasoning}`);
+    console.log(`[inventory] ${result.response}`);
 
     // Detect which trigger was called
     const survivalCall = result.toolExecutions.find((t) => t.name.endsWith("trigger_survival"));
@@ -128,7 +140,7 @@ Check health and capital. Decide: trigger_survival or trigger_strategy.`;
   } catch (err) {
     const errMsg = `Inventory error: ${err instanceof Error ? err.message : String(err)}`;
     console.error(`[inventory] ${errMsg}`);
-    await publishActivity("error", {
+    await publisher.publish("error", {
       summary: errMsg,
       model: config.heartbeatModel,
       cycleId,
@@ -150,17 +162,18 @@ Fix the issue.`;
         config.heartbeatModel,
         SURVIVAL_PROMPT,
         userPrompt,
-        toolSets.survival,
+        toolSets.survival.tools,
+        toolSets.survival.exec,
       );
 
       phases.push({
         type: "survival",
         model: config.heartbeatModel,
-        reasoning: result.reasoning,
+        reasoning: result.response,
         toolExecutions: result.toolExecutions,
       });
 
-      console.log(`[survival] ${result.reasoning}`);
+      console.log(`[survival] ${result.response}`);
     } catch (err) {
       const errMsg = `Survival error: ${err instanceof Error ? err.message : String(err)}`;
       console.error(`[survival] ${errMsg}`);
@@ -184,17 +197,18 @@ Calculate availableToSupply = idle USDC - idle target. If <= 0, the excess is al
         config.strategyModel,
         STRATEGY_PROMPT,
         userPrompt,
-        toolSets.strategy,
+        toolSets.strategy.tools,
+        toolSets.strategy.exec,
       );
 
       phases.push({
         type: "strategy",
         model: config.strategyModel,
-        reasoning: result.reasoning,
+        reasoning: result.response,
         toolExecutions: result.toolExecutions,
       });
 
-      console.log(`[strategy] ${result.reasoning}`);
+      console.log(`[strategy] ${result.response}`);
     } catch (err) {
       const errMsg = `Strategy error: ${err instanceof Error ? err.message : String(err)}`;
       console.error(`[strategy] ${errMsg}`);
@@ -230,7 +244,7 @@ Calculate availableToSupply = idle USDC - idle target. If <= 0, the excess is al
     const allTxHashes =
       phase === phases[phases.length - 1] ? [...toolTxHashes, ...inferenceTxHashes] : toolTxHashes;
 
-    await publishActivity(phase.type, {
+    await publisher.publish(phase.type, {
       summary,
       model: phase.model,
       cycleId,
@@ -257,7 +271,8 @@ export async function startAgent() {
   );
   console.log(`Cycle interval: ${config.cycleIntervalMs}ms`);
 
-  initAlephPublisher(config.privateKey);
+  const publisher = new AlephPublisher(config.privateKey);
+  await publisher.init();
 
   const wallet = await createAgentWallet(config.privateKey, config.chain, config.builderCode);
 
@@ -267,7 +282,7 @@ export async function startAgent() {
     actionProviders: [
       walletActionProvider(),
       erc20ActionProvider(),
-      alephActionProvider,
+      createAlephActionProvider(config.rpcUrl),
       compoundFixedProvider,
       basileusTriggerProvider,
     ],
@@ -290,14 +305,18 @@ export async function startAgent() {
   // Strategy: deploy capital (supply to Compound)
   const strategyActions = pick(["supply", "approve", "get_balance"]);
 
+  const { tools: inventoryTools, executeTool: execInventory } = actionsToTools(inventoryActions);
+  const { tools: survivalTools, executeTool: execSurvival } = actionsToTools(survivalActions);
+  const { tools: strategyTools, executeTool: execStrategy } = actionsToTools(strategyActions);
+
   const toolSets = {
-    inventory: actionsToTools(inventoryActions),
-    survival: actionsToTools(survivalActions),
-    strategy: actionsToTools(strategyActions),
+    inventory: { tools: inventoryTools, exec: execInventory },
+    survival: { tools: survivalTools, exec: execSurvival },
+    strategy: { tools: strategyTools, exec: execStrategy },
   };
 
   console.log(
-    `[agentkit] Inventory: ${toolSets.inventory.length} tools | Survival: ${toolSets.survival.length} tools | Strategy: ${toolSets.strategy.length} tools`,
+    `[agentkit] Inventory: ${toolSets.inventory.tools.length} tools | Survival: ${toolSets.survival.tools.length} tools | Strategy: ${toolSets.strategy.tools.length} tools`,
   );
 
   installX402Tracker();
@@ -310,13 +329,13 @@ export async function startAgent() {
     startedAt: new Date(),
   };
 
-  state = await runCycle(state, wallet, llmClient, toolSets);
+  state = await runCycle(state, wallet, llmClient, toolSets, publisher);
 
   // Use setTimeout loop to prevent re-entrance (cycles can exceed interval)
   const scheduleNext = () => {
     setTimeout(async () => {
       try {
-        state = await runCycle(state, wallet, llmClient, toolSets);
+        state = await runCycle(state, wallet, llmClient, toolSets, publisher);
       } catch (err) {
         console.error("[agent] Cycle failed:", err);
       }

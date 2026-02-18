@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle } from "lucide-react";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useActivities } from "../../hooks/useActivities";
 import { useBlockscoutFreshness } from "../../hooks/useBlockscoutFreshness";
 import { useTokenTransfers } from "../../hooks/useTokenTransfers";
 import { useTransactions } from "../../hooks/useTransactions";
 import { ActivityGroupRow } from "./ActivityGroupRow";
 import { ActivityRow } from "./ActivityRow";
-import { FeedFilters, type FilterValue } from "./FeedFilters";
+import { FeedFilters } from "./FeedFilters";
 import { FeedGroupRow } from "./FeedGroupRow";
 import { FeedItemRow } from "./FeedItemRow";
 import { groupFeedItems } from "./groupItems";
@@ -92,7 +93,10 @@ function FiltersButton({
 }
 
 export function ActivityFeed({ address }: ActivityFeedProps) {
-  const [filter, setFilter] = useState<FilterValue>("all");
+  const [filter, setFilter] = useQueryState(
+    "tab",
+    parseAsStringLiteral(["all", "transactions", "activities"] as const).withDefault("all"),
+  );
   const [hideScams, setHideScams] = useState(true);
   const [hideInference, setHideInference] = useState(false);
 
@@ -119,9 +123,7 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
         .filter((tt) => !txHashes.has(tt.transaction_hash.toLowerCase()))
         .map((tt) => normalizeTokenTransfer(tt, address)),
     ];
-    return items.filter(
-      (i) => (!hideScams || !i.isScam) && (!hideInference || !i.isInference),
-    );
+    return items.filter((i) => (!hideScams || !i.isScam) && (!hideInference || !i.isInference));
   }, [allTxs, allTokenTransfers, txHashes, address, hideScams, hideInference]);
 
   const displayItems = useMemo(

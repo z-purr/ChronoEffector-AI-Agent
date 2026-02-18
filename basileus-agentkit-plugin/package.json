@@ -1,12 +1,33 @@
 {
   "name": "basileus-agentkit-plugin",
   "version": "0.1.0",
+  "description": "Coinbase AgentKit plugin for Basileus — build autonomous onchain agents with Aleph Cloud, x402 payment tracking, and predefined action providers",
   "type": "module",
+  "license": "MIT",
+  "author": "Basileus",
+  "homepage": "https://github.com/RezaRahemtola/ETHDenver-2026/tree/main/basileus-agentkit-plugin#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/RezaRahemtola/ETHDenver-2026",
     "directory": "basileus-agentkit-plugin"
   },
+  "bugs": {
+    "url": "https://github.com/RezaRahemtola/ETHDenver-2026/issues"
+  },
+  "keywords": [
+    "agentkit",
+    "coinbase",
+    "base",
+    "blockchain",
+    "agent",
+    "aleph",
+    "x402",
+    "basileus"
+  ],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

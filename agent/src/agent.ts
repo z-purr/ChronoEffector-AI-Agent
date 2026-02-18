@@ -1,14 +1,15 @@
 import { type Tool } from "@blockrun/llm";
 import { AgentKit, erc20ActionProvider, walletActionProvider } from "@coinbase/agentkit";
-import { compoundFixedProvider } from "./actions/compound/index.js";
 import { alephActionProvider } from "./actions/aleph.js";
 import { basileusTriggerProvider } from "./actions/basileus.js";
+import { compoundFixedProvider } from "./actions/compound/index.js";
 import { initAlephPublisher, publishActivity, type ToolExecution } from "./aleph-publisher.js";
 import { config } from "./config.js";
 import { createLLMClient, runAgentLoop } from "./llm.js";
 import { summarizePhase } from "./summarizer.js";
 import { actionsToTools } from "./tools.js";
 import { createAgentWallet, getBalances, type WalletInfo } from "./wallet.js";
+import { drainX402TxHashes, installX402Tracker } from "./x402-tracker.js";
 
 const INVENTORY_PROMPT = `You are Basileus, an autonomous AI agent on Base blockchain.
 You pay for compute via an ALEPH Superfluid stream. You pay for inference with USDC via x402.
@@ -209,6 +210,13 @@ Calculate availableToSupply = idle USDC - idle target. If <= 0, the excess is al
   }
 
   // --- Phase 3: Summarize + Publish ---
+  const inferenceTxHashes = drainX402TxHashes();
+  if (inferenceTxHashes.length > 0) {
+    console.log(
+      `[x402] Drained ${inferenceTxHashes.length} inference tx hashes: ${inferenceTxHashes.join(", ")}`,
+    );
+  }
+
   for (const phase of phases) {
     const summary = await summarizePhase(
       llmClient,
@@ -218,14 +226,16 @@ Calculate availableToSupply = idle USDC - idle target. If <= 0, the excess is al
       phase.toolExecutions,
     );
 
-    const txHashes = phase.toolExecutions.map((t) => t.txHash).filter(Boolean) as string[];
+    const toolTxHashes = phase.toolExecutions.map((t) => t.txHash).filter(Boolean) as string[];
+    const allTxHashes =
+      phase === phases[phases.length - 1] ? [...toolTxHashes, ...inferenceTxHashes] : toolTxHashes;
 
     await publishActivity(phase.type, {
       summary,
       model: phase.model,
       cycleId,
       tools: phase.toolExecutions.length > 0 ? phase.toolExecutions : undefined,
-      txHashes: txHashes.length > 0 ? txHashes : undefined,
+      txHashes: allTxHashes.length > 0 ? allTxHashes : undefined,
     });
   }
 
@@ -290,6 +300,7 @@ export async function startAgent() {
     `[agentkit] Inventory: ${toolSets.inventory.length} tools | Survival: ${toolSets.survival.length} tools | Strategy: ${toolSets.strategy.length} tools`,
   );
 
+  installX402Tracker();
   const llmClient = createLLMClient(config.privateKey);
 
   let state: AgentState = {

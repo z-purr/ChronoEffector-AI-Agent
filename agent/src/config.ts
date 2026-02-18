@@ -22,7 +22,7 @@ export const config = {
   chain: base,
   cycleIntervalMs: parseInt(process.env.CYCLE_INTERVAL_MS || "900000"),
   heartbeatModel: process.env.LLM_HEARTBEAT_MODEL || "nvidia/gpt-oss-120b",
-  strategyModel: process.env.LLM_STRATEGY_MODEL || "anthropic/claude-sonnet-4",
+  strategyModel: process.env.LLM_STRATEGY_MODEL || "xai/grok-4-1-fast-reasoning",
   ethMinBalance: parseFloat(process.env.ETH_MIN_BALANCE || "0.0001"),
   usdcSurvivalThreshold: parseFloat(process.env.USDC_SURVIVAL_THRESHOLD || "3"),
   usdcIdleTarget: parseFloat(process.env.USDC_IDLE_TARGET || "5"),

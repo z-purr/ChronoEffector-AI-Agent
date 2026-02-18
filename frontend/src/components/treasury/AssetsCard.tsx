@@ -8,8 +8,8 @@ interface AssetsCardProps {
 }
 
 const PALETTE = {
-  usdc: "#10b981",
-  compound: "#c49a6c",
+  usdc: "#2775ca",
+  compound: "#00d395",
   empty: "#27272a",
 };
 
@@ -40,8 +40,14 @@ export function AssetsCard({ usdc, compoundUsdc, index = 0 }: AssetsCardProps) {
   const chartData = isEmpty ? [{ name: "Empty", value: 1, color: PALETTE.empty }] : segments;
 
   const items = [
-    { label: "USDC", sub: "Wallet", value: usdcVal, color: PALETTE.usdc },
-    { label: "Compound USDC", sub: "Lending", value: compoundVal, color: PALETTE.compound },
+    { label: "USDC", sub: "Wallet", value: usdcVal, color: PALETTE.usdc, icon: "/icons/usdc.png" },
+    {
+      label: "Compound USDC",
+      sub: "Lending",
+      value: compoundVal,
+      color: PALETTE.compound,
+      icon: "/icons/compound.png",
+    },
   ];
 
   return (
@@ -70,23 +76,23 @@ export function AssetsCard({ usdc, compoundUsdc, index = 0 }: AssetsCardProps) {
         <div className="mt-3 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-8">
           {/* Donut with total in center */}
           <div className="relative h-[110px] w-[110px] shrink-0">
-              <PieChart width={110} height={110}>
-                <Pie
-                  data={chartData}
-                  dataKey="value"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={34}
-                  outerRadius={50}
-                  strokeWidth={0}
-                  paddingAngle={segments.length > 1 ? 3 : 0}
-                  isAnimationActive={false}
-                >
-                  {chartData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Pie>
-              </PieChart>
+            <PieChart width={110} height={110}>
+              <Pie
+                data={chartData}
+                dataKey="value"
+                cx="50%"
+                cy="50%"
+                innerRadius={34}
+                outerRadius={50}
+                strokeWidth={0}
+                paddingAngle={segments.length > 1 ? 3 : 0}
+                isAnimationActive={false}
+              >
+                {chartData.map((entry) => (
+                  <Cell key={entry.name} fill={entry.color} />
+                ))}
+              </Pie>
+            </PieChart>
             {/* Center total */}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <span
@@ -106,9 +112,10 @@ export function AssetsCard({ usdc, compoundUsdc, index = 0 }: AssetsCardProps) {
                 <div key={item.label}>
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                        style={{ backgroundColor: item.color }}
+                      <img
+                        src={item.icon}
+                        alt={item.label}
+                        className="h-4 w-4 shrink-0 rounded-full"
                       />
                       <span
                         className="text-sm text-zinc-200"

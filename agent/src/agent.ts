@@ -42,11 +42,13 @@ Fix the issues reported. Be efficient — do only what's needed.`;
 const STRATEGY_PROMPT = `You are Basileus, an autonomous AI agent on Base blockchain.
 You have excess capital to deploy.
 
-For now, your strategy is simple: supply excess USDC to Compound to earn yield.
-IMPORTANT: You MUST keep ${config.usdcIdleTarget} USDC idle in the wallet for inference costs. Only supply the EXCESS amount to Compound — never the full idle balance.
-Use compound_supply with assetId "usdc" and the EXACT excess amount provided.
+For now, your strategy is simple: supply idle USDC to Compound to earn yield.
+IMPORTANT: You MUST keep ${config.usdcIdleTarget} USDC idle in the wallet — this is raw USDC needed for inference payments.
+Only supply USDC from idle that is ABOVE the idle target. The amount you can supply = idleUsdc - ${config.usdcIdleTarget}.
+If that is <= 0, the excess is already deployed — do nothing.
+Otherwise, use the Compound supply tool to supply that amount.
 
-Be concise. Execute the supply.`;
+Be concise.`;
 
 interface AgentState {
   cycle: number;
@@ -171,10 +173,10 @@ Fix the issue.`;
   } else if (trigger?.kind === "strategy") {
     console.log(`[strategy] Triggered — excess: ${trigger.args.excessAmount ?? "0"} USDC`);
     try {
-      const userPrompt = `Amount to supply to Compound: ${trigger.args.excessAmount ?? "0"} USDC (this is the excess — safety margin already subtracted)
+      const userPrompt = `Total excess capital: ${trigger.args.excessAmount ?? "0"} USDC (idle + compound - idle target)
 Idle USDC: ${trigger.args.idleUsdc ?? "?"} | Already in Compound: ${trigger.args.compoundUsdc ?? "?"} | Idle target: ${config.usdcIdleTarget}
 
-Supply exactly ${trigger.args.excessAmount ?? "0"} USDC to Compound. Do NOT supply more.`;
+Calculate availableToSupply = idle USDC - idle target. If <= 0, the excess is already deployed — do nothing. Otherwise supply that amount.`;
 
       const result = await runAgentLoop(
         llmClient,

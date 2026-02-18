@@ -36,10 +36,7 @@ export function groupFeedItems(
       acts.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
       // Use latest timestamp for feed position
       const latest = new Date(acts[acts.length - 1].timestamp).getTime();
-      const di: DisplayItem =
-        acts.length === 1
-          ? { kind: "activity", data: acts[0] }
-          : { kind: "activityGroup", activities: acts };
+      const di: DisplayItem = { kind: "activityGroup", activities: acts };
       merged.push({ sort: latest, groupKey: key, di });
     }
   }

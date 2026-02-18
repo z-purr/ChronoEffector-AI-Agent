@@ -20,9 +20,13 @@ interface ActivityFeedProps {
 function FiltersButton({
   hideScams,
   onHideScamsChange,
+  hideInference,
+  onHideInferenceChange,
 }: {
   hideScams: boolean;
   onHideScamsChange: (v: boolean) => void;
+  hideInference: boolean;
+  onHideInferenceChange: (v: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -36,7 +40,7 @@ function FiltersButton({
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const activeCount = [hideScams].filter(Boolean).length;
+  const activeCount = [hideScams, hideInference].filter(Boolean).length;
 
   return (
     <div ref={ref} className="relative">
@@ -72,6 +76,15 @@ function FiltersButton({
             />
             Hide scam transactions
           </label>
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-elevated select-none">
+            <input
+              type="checkbox"
+              checked={hideInference}
+              onChange={(e) => onHideInferenceChange(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-zinc-600 bg-neutral-800 accent-zinc-400"
+            />
+            Hide inference payments
+          </label>
         </div>
       )}
     </div>
@@ -81,6 +94,7 @@ function FiltersButton({
 export function ActivityFeed({ address }: ActivityFeedProps) {
   const [filter, setFilter] = useState<FilterValue>("all");
   const [hideScams, setHideScams] = useState(true);
+  const [hideInference, setHideInference] = useState(false);
 
   const txQuery = useTransactions(address);
   const tokenQuery = useTokenTransfers(address);
@@ -105,9 +119,10 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
         .filter((tt) => !txHashes.has(tt.transaction_hash.toLowerCase()))
         .map((tt) => normalizeTokenTransfer(tt, address)),
     ];
-    if (hideScams) return items.filter((i) => !i.isScam);
-    return items;
-  }, [allTxs, allTokenTransfers, txHashes, address, hideScams]);
+    return items.filter(
+      (i) => (!hideScams || !i.isScam) && (!hideInference || !i.isInference),
+    );
+  }, [allTxs, allTokenTransfers, txHashes, address, hideScams, hideInference]);
 
   const displayItems = useMemo(
     () => groupFeedItems(normalizedItems, activities, filter),
@@ -128,7 +143,12 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
         </h2>
         <div className="flex items-center gap-2">
           <FeedFilters activeFilter={filter} onFilterChange={setFilter} />
-          <FiltersButton hideScams={hideScams} onHideScamsChange={setHideScams} />
+          <FiltersButton
+            hideScams={hideScams}
+            onHideScamsChange={setHideScams}
+            hideInference={hideInference}
+            onHideInferenceChange={setHideInference}
+          />
         </div>
       </div>
 

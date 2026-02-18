@@ -40,6 +40,7 @@ export interface NormalizedTxItem {
   symbol: string | null;
   rawValue: number;
   isScam: boolean;
+  isInference: boolean;
   isSent: boolean;
   counterparty: string | null;
   showCounterparty: boolean;
@@ -131,6 +132,7 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
     symbol: hideValue ? null : symbol,
     rawValue,
     isScam: false,
+    isInference: false,
     isSent,
     counterparty,
     showCounterparty,
@@ -179,6 +181,7 @@ export function normalizeTokenTransfer(
     symbol: tt.token.symbol,
     rawValue,
     isScam,
+    isInference: isBlockrun,
     isSent,
     counterparty,
     showCounterparty: !isBlockrun,

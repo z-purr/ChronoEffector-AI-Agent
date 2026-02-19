@@ -59,7 +59,7 @@ export function AssetsCard({ usdc, compoundUsdc, limitless = 0, index = 0 }: Ass
       color: PALETTE.limitless,
       icon: "/icons/limitless.png",
     },
-  ];
+  ].filter((item) => item.value > 0);
 
   return (
     <Card
@@ -83,85 +83,93 @@ export function AssetsCard({ usdc, compoundUsdc, limitless = 0, index = 0 }: Ass
           Assets
         </span>
 
-        {/* Mobile: stacked. Desktop: side by side */}
-        <div className="mt-3 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-8">
-          {/* Donut with total in center */}
-          <div className="relative h-[110px] w-[110px] shrink-0">
-            <PieChart width={110} height={110}>
-              <Pie
-                data={chartData}
-                dataKey="value"
-                cx="50%"
-                cy="50%"
-                innerRadius={34}
-                outerRadius={50}
-                strokeWidth={0}
-                paddingAngle={segments.length > 1 ? 3 : 0}
-                isAnimationActive={false}
-              >
-                {chartData.map((entry) => (
-                  <Cell key={entry.name} fill={entry.color} />
-                ))}
-              </Pie>
-            </PieChart>
-            {/* Center total */}
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <span
-                className="text-base font-medium text-zinc-50"
-                style={{ fontFamily: "var(--font-mono)" }}
-              >
-                {fmt(total)}
-              </span>
-            </div>
+        {isEmpty ? (
+          <div className="mt-3 flex items-center justify-center py-8">
+            <span className="text-sm text-zinc-600" style={{ fontFamily: "var(--font-body)" }}>
+              No assets
+            </span>
           </div>
+        ) : (
+          /* Mobile: stacked. Desktop: side by side */
+          <div className="mt-3 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-8">
+            {/* Donut with total in center */}
+            <div className="relative h-[110px] w-[110px] shrink-0">
+              <PieChart width={110} height={110}>
+                <Pie
+                  data={chartData}
+                  dataKey="value"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={34}
+                  outerRadius={50}
+                  strokeWidth={0}
+                  paddingAngle={segments.length > 1 ? 3 : 0}
+                  isAnimationActive={false}
+                >
+                  {chartData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
+              </PieChart>
+              {/* Center total */}
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <span
+                  className="text-base font-medium text-zinc-50"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                >
+                  {fmt(total)}
+                </span>
+              </div>
+            </div>
 
-          {/* Breakdown */}
-          <div className="flex w-full flex-1 flex-col gap-3">
-            {items.map((item) => {
-              const barPct = total > 0 ? (item.value / total) * 100 : 0;
-              return (
-                <div key={item.label}>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={item.icon}
-                        alt={item.label}
-                        className="h-4 w-4 shrink-0 rounded-full"
-                      />
+            {/* Breakdown */}
+            <div className="flex w-full flex-1 flex-col gap-3">
+              {items.map((item) => {
+                const barPct = total > 0 ? (item.value / total) * 100 : 0;
+                return (
+                  <div key={item.label}>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={item.icon}
+                          alt={item.label}
+                          className="h-4 w-4 shrink-0 rounded-full"
+                        />
+                        <span
+                          className="text-sm text-zinc-200"
+                          style={{ fontFamily: "var(--font-body)" }}
+                        >
+                          {item.label}
+                        </span>
+                        <span
+                          className="text-[10px] text-zinc-600"
+                          style={{ fontFamily: "var(--font-mono)" }}
+                        >
+                          {pct(item.value, total)}
+                        </span>
+                      </div>
                       <span
-                        className="text-sm text-zinc-200"
-                        style={{ fontFamily: "var(--font-body)" }}
-                      >
-                        {item.label}
-                      </span>
-                      <span
-                        className="text-[10px] text-zinc-600"
+                        className="text-sm font-medium text-zinc-50 tabular-nums"
                         style={{ fontFamily: "var(--font-mono)" }}
                       >
-                        {pct(item.value, total)}
+                        {fmt(item.value)}
                       </span>
                     </div>
-                    <span
-                      className="text-sm font-medium text-zinc-50 tabular-nums"
-                      style={{ fontFamily: "var(--font-mono)" }}
-                    >
-                      {fmt(item.value)}
-                    </span>
+                    <div className="mt-1.5 h-1 w-full rounded-full bg-neutral-800/60">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${barPct}%`,
+                          backgroundColor: item.color,
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="mt-1.5 h-1 w-full rounded-full bg-neutral-800/60">
-                    <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{
-                        width: `${barPct}%`,
-                        backgroundColor: item.color,
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </Card>
   );

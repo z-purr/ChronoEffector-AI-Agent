@@ -16,7 +16,7 @@
   "dependencies": {
     "@blockrun/llm": "^0.3.0",
     "@coinbase/agentkit": "^0.10.4",
-    "basileus-agentkit-plugin": "^0.1.0",
+    "basileus-agentkit-plugin": "^0.2.0",
     "dotenv": "^16.4.7",
     "viem": "^2.45.3"
   },

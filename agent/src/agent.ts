@@ -1,18 +1,19 @@
 import { type Tool } from "@blockrun/llm";
 import { AgentKit, erc20ActionProvider, walletActionProvider } from "@coinbase/agentkit";
 import {
-  AlephPublisher,
-  createAlephActionProvider,
-  compoundFixedProvider,
-  createLLMClient,
-  runAgentLoop,
   actionsToTools,
-  summarizePhase,
-  installX402Tracker,
-  drainX402TxHashes,
-  type ToolExecution,
+  AlephPublisher,
+  compoundFixedProvider,
   createAgentWallet,
+  createAlephActionProvider,
+  createLimitlessActionProvider,
+  createLLMClient,
+  drainX402TxHashes,
   getBalances,
+  installX402Tracker,
+  runAgentLoop,
+  summarizePhase,
+  type ToolExecution,
   type WalletInfo,
 } from "basileus-agentkit-plugin";
 import { basileusTriggerProvider } from "./actions/basileus.js";
@@ -48,14 +49,14 @@ Available actions:
 Fix the issues reported. Be efficient — do only what's needed.`;
 
 const STRATEGY_PROMPT = `You are Basileus, an autonomous AI agent on Base blockchain.
-You have excess capital to deploy.
 
-For now, your strategy is simple: supply idle USDC to Compound to earn yield.
-IMPORTANT: You MUST keep ${config.usdcIdleTarget} USDC idle in the wallet — this is raw USDC needed for inference payments.
-Only supply USDC from idle that is ABOVE the idle target. The amount you can supply = idleUsdc - ${config.usdcIdleTarget}.
-If that is <= 0, the excess is already deployed — do nothing.
-Otherwise, use the Compound supply tool to supply that amount.
+Your #1 priority is prediction market trading. You have a tool that scans Limitless Exchange markets — you MUST call it every cycle. Do not hallucinate market data. Use your tools.
 
+STEP 1 (MANDATORY): Call your Limitless market scanning tool. Do NOT skip this step.
+STEP 2: Analyze the returned markets for mispricing opportunities. Report what you find.
+STEP 3: Only after scanning, handle Compound — supply idle USDC above ${config.usdcIdleTarget} if available. If a Limitless opportunity needs USDC, withdraw from Compound first.
+
+Always keep ${config.usdcIdleTarget} USDC idle for inference payments.
 Be concise.`;
 
 interface AgentState {
@@ -279,6 +280,10 @@ export async function startAgent() {
   const wallet = await createAgentWallet(config.privateKey, config.chain, config.rpcUrl);
 
   // All actions from all providers, then filter per phase
+  const limitlessProvider = config.limitlessApiKey
+    ? createLimitlessActionProvider(config.limitlessApiKey, config.privateKey)
+    : null;
+
   const allKit = await AgentKit.from({
     walletProvider: wallet.provider,
     actionProviders: [
@@ -287,11 +292,15 @@ export async function startAgent() {
       createAlephActionProvider(config.rpcUrl),
       compoundFixedProvider,
       basileusTriggerProvider,
+      ...(limitlessProvider ? [limitlessProvider] : []),
     ],
   });
 
   const allActions = allKit.getActions();
-  const pick = (names: string[]) => allActions.filter((a) => names.some((n) => a.name.endsWith(n)));
+  // Deduplicate (customActionProvider prototype pollution causes duplicates)
+  const dedupedActions = [...new Map(allActions.map((a) => [a.name, a])).values()];
+  const pick = (names: string[]) =>
+    dedupedActions.filter((a) => names.some((n) => a.name.endsWith(n)));
 
   // Inventory: read-only checks + triggers (no transfers, no supply)
   const inventoryActions = pick([
@@ -304,8 +313,14 @@ export async function startAgent() {
   // Survival: fix resource issues (swap ALEPH, withdraw from Compound)
   const survivalActions = pick(["swap_eth_to_aleph", "withdraw", "approve", "get_balance"]);
 
-  // Strategy: deploy capital (supply to Compound)
-  const strategyActions = pick(["supply", "approve", "get_balance"]);
+  // Strategy: Limitless markets + Compound yield
+  const strategyActions = pick([
+    "supply",
+    "withdraw",
+    "approve",
+    "get_balance",
+    "get_daily_markets",
+  ]);
 
   const { tools: inventoryTools, executeTool: execInventory } = actionsToTools(inventoryActions);
   const { tools: survivalTools, executeTool: execSurvival } = actionsToTools(survivalActions);

@@ -27,5 +27,6 @@ export const config = {
   ethMinBalance: parseFloat(process.env.ETH_MIN_BALANCE || "0.0001"),
   usdcSurvivalThreshold: parseFloat(process.env.USDC_SURVIVAL_THRESHOLD || "3"),
   usdcIdleTarget: parseFloat(process.env.USDC_IDLE_TARGET || "5"),
+  maxTradeUsdc: parseFloat(process.env.MAX_TRADE_USDC || "2"),
   rpcUrl: process.env.RPC_URL || undefined,
 } as const;

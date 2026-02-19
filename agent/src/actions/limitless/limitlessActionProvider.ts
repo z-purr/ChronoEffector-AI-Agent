@@ -70,13 +70,17 @@ function fmtShares(raw: number | string | undefined | null): number | null {
   return Number(raw) / 10 ** SHARES_DECIMALS;
 }
 
-function timeRemaining(expirationTimestamp: number | undefined): string | null {
+function minutesRemaining(expirationTimestamp: number | undefined): number | null {
   if (!expirationTimestamp) return null;
   const diffMs = expirationTimestamp - Date.now();
-  if (diffMs <= 0) return "expired";
-  const h = Math.floor(diffMs / 3_600_000);
-  const m = Math.floor((diffMs % 3_600_000) / 60_000);
-  return `${h}h ${m}m`;
+  if (diffMs <= 0) return 0;
+  return Math.round(diffMs / 60_000);
+}
+
+/** Approximate taker fee %. Limitless: 3% at price=0 → 0.03% at price=1 (linear). */
+function estimatedBuyFee(price: number | null): number | null {
+  if (price == null) return null;
+  return +Math.max(0.03, 3 - 2.97 * price).toFixed(2);
 }
 
 /* ── Spot price helper (CoinGecko) ── */
@@ -209,9 +213,9 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
                 title: m.title,
                 ticker,
                 pctDiff,
-                timeRemaining: timeRemaining(m.expirationTimestamp),
-                buyYes,
-                buyNo,
+                minutesRemaining: minutesRemaining(m.expirationTimestamp),
+                buyYes: buyYes ? { ...buyYes, estimatedFee: estimatedBuyFee(buyYes.price) } : null,
+                buyNo: buyNo ? { ...buyNo, estimatedFee: estimatedBuyFee(buyNo.price) } : null,
               };
             }),
           );

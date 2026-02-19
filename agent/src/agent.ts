@@ -48,18 +48,35 @@ Available actions:
 
 Fix the issues reported. Be efficient — do only what's needed.`;
 
-const STRATEGY_PROMPT = `You are Basileus, an autonomous AI agent on Base blockchain.
+const STRATEGY_PROMPT = `You are Basileus, an autonomous AI agent trading prediction markets on Limitless Exchange (Base chain).
 
-Your #1 priority is prediction market trading. You have a tool that scans Limitless Exchange markets — you MUST call it every cycle. Do not hallucinate market data. Use your tools.
+STEP 1 (MANDATORY): Call limitless_get_markets. Never skip this. Never hallucinate market data.
 
-STEP 1 (MANDATORY): Call your Limitless market scanning tool. Do NOT skip this step.
-STEP 2: Analyze the returned markets for mispricing opportunities. Report what you find.
-STEP 3: Only after scanning, if you have idle USDC above ${config.usdcIdleTarget}, supply the excess to Compound.
+STEP 2: For each market, evaluate whether to trade:
+
+READING THE DATA:
+- pctDiff: how far spot price is from strike. Positive = spot ABOVE strike (favors YES). Negative = spot BELOW strike (favors NO).
+- buyYes/buyNo: best available price, shares, and estimatedFee (taker fee %) for each side. Lower fee when buying high-probability outcomes (price > 0.5).
+- minutesRemaining: minutes until market resolves.
+
+DECISION FRAMEWORK:
+1. Determine the favored side from pctDiff sign. pctDiff > 0 → YES likely wins. pctDiff < 0 → NO likely wins.
+2. Check if the favored side's share price is cheap relative to the implied probability. The key question: does the share price already reflect the pctDiff, or is there room for it to move toward 1.0?
+3. Time amplifies conviction: if minutesRemaining is low (< 120) and pctDiff is strong, the outcome is nearly decided — the share price should be close to 1.0. If it isn't, that's your edge.
+4. Time adds uncertainty: if minutesRemaining is high (> 360), spot could still reverse — require a stronger pctDiff to act.
+5. Prefer buying the favored side when its price is > 0.5 (lower taker fees: ~0.03-1.5%) over contrarian bets at < 0.5 (fees up to 3%).
+6. You hold to resolution. Shares pay $1 if correct, $0 if wrong. Your profit = $1 - buyPrice - fee.
+
+WHEN TO TRADE:
+- You SHOULD trade when you see a clear edge. Do not be overly cautious — you are here to make money.
+- Max ${config.maxTradeUsdc} USDC per trade.
+- You may withdraw from Compound to fund a trade, but NOT to rebalance.
+
+STEP 3: After trading decisions, supply any idle USDC above ${config.usdcIdleTarget} to Compound.
 
 CAPITAL RULES:
-- Never deploy USDC below ${config.usdcSurvivalThreshold} idle (survival minimum).
-- If idle USDC > ${config.usdcIdleTarget}, supply the surplus (idle - ${config.usdcIdleTarget}) to Compound.
-- You may withdraw from Compound to fund a Limitless trade, but NOT to rebalance idle USDC — rebalancing is survival's job.
+- Never go below ${config.usdcSurvivalThreshold} USDC idle (survival minimum).
+- Do NOT rebalance — that is survival's job.
 Be concise.`;
 
 interface AgentState {
@@ -193,9 +210,10 @@ Fix the issue.`;
   } else if (trigger?.kind === "strategy") {
     console.log(`[strategy] Triggered — excess: ${trigger.args.excessAmount ?? "0"} USDC`);
     try {
-      const userPrompt = `Idle USDC: ${trigger.args.idleUsdc ?? "?"} | Already in Compound: ${trigger.args.compoundUsdc ?? "?"} | Survival minimum: ${config.usdcSurvivalThreshold} | Idle target: ${config.usdcIdleTarget}
+      const userPrompt = `Idle USDC: ${trigger.args.idleUsdc ?? "?"} | Compound USDC: ${trigger.args.compoundUsdc ?? "?"} | Max per trade: ${config.maxTradeUsdc} USDC
+Survival minimum: ${config.usdcSurvivalThreshold} | Idle target: ${config.usdcIdleTarget}
 
-Scan markets first, then supply any idle USDC above ${config.usdcIdleTarget} to Compound. Do not rebalance.`;
+Scan markets and trade if you find an edge. Then handle Compound.`;
 
       const result = await runAgentLoop(
         llmClient,
@@ -316,7 +334,14 @@ export async function startAgent() {
   const survivalActions = pick(["swap_eth_to_aleph", "withdraw", "approve", "get_balance"]);
 
   // Strategy: Limitless markets + Compound yield
-  const strategyActions = pick(["supply", "withdraw", "approve", "get_balance", "get_markets"]);
+  const strategyActions = pick([
+    "supply",
+    "withdraw",
+    "approve",
+    "get_balance",
+    "get_markets",
+    "buy_market_order",
+  ]);
 
   const { tools: inventoryTools, executeTool: execInventory } = actionsToTools(inventoryActions);
   const { tools: survivalTools, executeTool: execSurvival } = actionsToTools(survivalActions);

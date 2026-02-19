@@ -4,7 +4,7 @@ import {
   type MarketInterface,
 } from "@limitless-exchange/sdk";
 import { customActionProvider, EvmWalletProvider } from "@coinbase/agentkit";
-import { encodeFunctionData, erc20Abi } from "viem";
+import { encodeFunctionData, erc20Abi, parseUnits } from "viem";
 import { createLimitlessClients, type LimitlessClients } from "./client.js";
 import { USDC_ADDRESS, CTF_ADDRESS, USDC_DECIMALS } from "./constants.js";
 import {
@@ -66,6 +66,21 @@ async function approveERC1155(
   await wallet.waitForTransactionReceipt(txHash);
 }
 
+/* ── Helpers ── */
+
+/** Crypto market page UUID + daily filter — same as the Limitless UI crypto page */
+const CRYPTO_PAGE_ID = "5e76699e-8763-4c91-85de-3efeb064efec";
+
+/** Compute human-readable time remaining from ms timestamp */
+function timeRemaining(expirationTimestamp: number | undefined): string | null {
+  if (!expirationTimestamp) return null;
+  const diffMs = expirationTimestamp - Date.now();
+  if (diffMs <= 0) return "expired";
+  const h = Math.floor(diffMs / 3_600_000);
+  const m = Math.floor((diffMs % 3_600_000) / 60_000);
+  return `${h}h ${m}m`;
+}
+
 /* ── Factory ── */
 export function createLimitlessActionProvider(
   apiKey: string,
@@ -74,52 +89,53 @@ export function createLimitlessActionProvider(
   const clients: LimitlessClients = createLimitlessClients(apiKey, privateKey);
 
   return customActionProvider<EvmWalletProvider>([
-    /* ───────────────── 1. Get Daily Markets ───────────────── */
+    /* ───────────────── 1. Get Daily Crypto Markets ───────────────── */
     {
       name: "limitless_get_daily_markets",
       description:
-        "Fetch active prediction markets from Limitless Exchange. Returns market titles, slugs, prices, volumes, and top orderbook levels. Optionally filter by category.",
+        "Fetch active daily crypto prediction markets (e.g. '$ETH above $X') from Limitless Exchange. Returns prices, orderbooks, time remaining, and token IDs for trading.",
       schema: GetDailyMarketsSchema,
       invoke: async (
         _walletProvider: EvmWalletProvider,
-        args: { category?: string },
+        _args: { category?: string },
       ) => {
         try {
-          const resp = await clients.marketFetcher.getActiveMarkets({
-            limit: 25,
-          });
+          // Fetch daily crypto markets via the market-pages endpoint (same as UI)
+          const resp = await clients.httpClient.get<{ data: MarketInterface[] }>(
+            `/market-pages/${CRYPTO_PAGE_ID}/markets`,
+            { params: { duration: "daily", page: 1, limit: 25, sort: "deadline" } },
+          );
 
-          let markets = resp.data;
-          if (args.category) {
-            const cat = args.category.toLowerCase();
-            markets = markets.filter((m: MarketInterface) =>
-              m.categories?.some((c: string) => c.toLowerCase().includes(cat)),
-            );
-          }
+          const now = Date.now();
+          const dailyCrypto = resp.data.filter(
+            (m: MarketInterface) =>
+              !m.expired &&
+              (m.expirationTimestamp ?? 0) > now,
+          );
 
           const summaries = await Promise.all(
-            markets.slice(0, 15).map(async (m: MarketInterface) => {
+            dailyCrypto.map(async (m: MarketInterface) => {
               let orderbook = null;
               try {
-                if (m.tradeType === "clob" && m.slug) {
+                if (m.slug) {
                   orderbook = await clients.marketFetcher.getOrderBook(m.slug);
                 }
               } catch {
-                /* orderbook may not exist for all markets */
+                /* orderbook may not exist */
               }
 
               return {
                 slug: m.slug,
                 title: m.title,
-                categories: m.categories,
-                status: m.status,
                 expirationDate: m.expirationDate,
+                expirationTimestamp: m.expirationTimestamp,
+                timeRemaining: timeRemaining(m.expirationTimestamp),
                 volume: m.volumeFormatted ?? m.volume,
                 yesPrice: m.prices?.[0] ?? null,
                 noPrice: m.prices?.[1] ?? null,
-                tradeType: m.tradeType,
                 topBid: orderbook?.bids?.[0] ?? null,
                 topAsk: orderbook?.asks?.[0] ?? null,
+                midpoint: orderbook?.adjustedMidpoint ?? null,
                 yesTokenId: m.tokens?.yes ?? null,
                 noTokenId: m.tokens?.no ?? null,
               };
@@ -127,7 +143,7 @@ export function createLimitlessActionProvider(
           );
 
           return JSON.stringify(
-            { totalActive: resp.totalMarketsCount, markets: summaries },
+            { count: summaries.length, markets: summaries },
             null,
             2,
           );
@@ -145,7 +161,7 @@ export function createLimitlessActionProvider(
       schema: BuyMarketOrderSchema,
       invoke: async (
         walletProvider: EvmWalletProvider,
-        args: { marketSlug: string; side: "YES" | "NO"; amountUsdc: number },
+        args: { marketSlug: string; side: "YES" | "NO"; amountUsdc: string },
       ) => {
         try {
           // Fetch market to cache venue + get tokenIds
@@ -162,9 +178,7 @@ export function createLimitlessActionProvider(
             args.side === "YES" ? market.tokens.yes : market.tokens.no;
 
           // Approve USDC to venue.exchange
-          const usdcAmountAtomic = BigInt(
-            Math.round(args.amountUsdc * 10 ** USDC_DECIMALS),
-          );
+          const usdcAmountAtomic = parseUnits(args.amountUsdc, USDC_DECIMALS);
           await approveERC20(
             walletProvider,
             USDC_ADDRESS,
@@ -176,7 +190,7 @@ export function createLimitlessActionProvider(
           const response = await clients.orderClient.createOrder({
             tokenId,
             side: Side.BUY,
-            makerAmount: args.amountUsdc,
+            makerAmount: Number(usdcAmountAtomic),
             orderType: OrderType.FOK,
             marketSlug: args.marketSlug,
           });

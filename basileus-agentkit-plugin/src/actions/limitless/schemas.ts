@@ -14,9 +14,9 @@ export const BuyMarketOrderSchema = z
     marketSlug: z.string().describe("Market slug identifier, e.g. 'bitcoin-100k-may'"),
     side: z.enum(["YES", "NO"]).describe("Which outcome to buy: YES or NO"),
     amountUsdc: z
-      .number()
-      .positive()
-      .describe("Amount of USDC to spend, e.g. 10.0 = $10"),
+      .string()
+      .regex(/^\d+(\.\d+)?$/, "Must be a valid number")
+      .describe("Amount of USDC to spend, e.g. '5.0'"),
   })
   .describe("Buy outcome tokens via a Fill-or-Kill market order");
 

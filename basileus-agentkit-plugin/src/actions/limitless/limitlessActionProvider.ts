@@ -11,7 +11,7 @@ import {
   PlaceLimitSellSchema,
 } from "./schemas.js";
 
-/* ── ERC-1155 minimal ABI for setApprovalForAll ── */
+/* ── ERC-1155 minimal ABI ── */
 const erc1155SetApprovalAbi = [
   {
     inputs: [
@@ -25,7 +25,6 @@ const erc1155SetApprovalAbi = [
   },
 ] as const;
 
-/* ── ERC-20 approve helper (same pattern as compound) ── */
 async function approveERC20(
   wallet: EvmWalletProvider,
   tokenAddress: string,
@@ -44,7 +43,6 @@ async function approveERC20(
   await wallet.waitForTransactionReceipt(txHash);
 }
 
-/* ── ERC-1155 setApprovalForAll helper ── */
 async function approveERC1155(
   wallet: EvmWalletProvider,
   tokenAddress: string,
@@ -64,17 +62,14 @@ async function approveERC1155(
 
 /* ── Helpers ── */
 
-/** Crypto market page UUID + daily filter — same as the Limitless UI crypto page */
 const CRYPTO_PAGE_ID = "5e76699e-8763-4c91-85de-3efeb064efec";
-
-/** Shares use 6 decimals (same as USDC) */
 const SHARES_DECIMALS = 6;
+
 function fmtShares(raw: number | string | undefined | null): number | null {
   if (raw == null) return null;
   return Number(raw) / 10 ** SHARES_DECIMALS;
 }
 
-/** Compute human-readable time remaining from ms timestamp */
 function timeRemaining(expirationTimestamp: number | undefined): string | null {
   if (!expirationTimestamp) return null;
   const diffMs = expirationTimestamp - Date.now();
@@ -141,76 +136,71 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
   const clients: LimitlessClients = createLimitlessClients(apiKey, privateKey);
 
   return customActionProvider<EvmWalletProvider>([
-    /* ───────────────── 1. Get Daily Crypto Markets ───────────────── */
+    /* ───────── 1. Scan Markets ───────── */
     {
       name: "limitless_get_daily_markets",
       description:
-        "Fetch active daily crypto prediction markets from Limitless Exchange. Returns strike price, current spot price, buy YES/NO prices with available shares, and time remaining. Use to find mispricing opportunities.",
+        "Scan daily crypto prediction markets on Limitless for mispricing opportunities. " +
+        "Returns ticker, spot-vs-strike % diff, buy YES/NO prices with available shares, and time remaining. " +
+        "Positive pctDiff = spot above strike (favors YES), negative = below (favors NO).",
       schema: GetDailyMarketsSchema,
-      invoke: async (_walletProvider: EvmWalletProvider, _args: { category?: string }) => {
+      invoke: async () => {
         try {
-          // Fetch daily crypto markets via the market-pages endpoint (same as UI)
           const resp = await clients.httpClient.get<{ data: MarketInterface[] }>(
             `/market-pages/${CRYPTO_PAGE_ID}/markets`,
             { params: { duration: "daily", page: 1, limit: 25, sort: "deadline" } },
           );
 
           const now = Date.now();
-          const dailyCrypto = resp.data.filter(
+          const active = resp.data.filter(
             (m: MarketInterface) => !m.expired && (m.expirationTimestamp ?? 0) > now,
           );
 
-          // Fetch spot prices for all tickers
           const tickers = [
             ...new Set(
-              dailyCrypto
-                .map((m: any) => (m as any).priceOracleMetadata?.ticker as string | undefined)
+              active
+                .map((m: any) => m.priceOracleMetadata?.ticker as string | undefined)
                 .filter(Boolean),
             ),
           ] as string[];
           const spotPrices = await fetchSpotPrices(tickers);
 
-          const summaries = await Promise.all(
-            dailyCrypto.map(async (m: MarketInterface) => {
+          const markets = await Promise.all(
+            active.map(async (m: MarketInterface) => {
               const mAny = m as any;
-              const ticker = mAny.priceOracleMetadata?.ticker ?? null;
-              let buyYes: { price: number; availableShares: number } | null = null;
-              let buyNo: { price: number; availableShares: number } | null = null;
+              const ticker: string | null = mAny.priceOracleMetadata?.ticker ?? null;
 
+              let buyYes: { price: number; shares: number } | null = null;
+              let buyNo: { price: number; shares: number } | null = null;
               try {
                 if (m.slug) {
                   const ob = await clients.marketFetcher.getOrderBook(m.slug);
                   if (ob.asks?.length) {
-                    buyYes = {
-                      price: ob.asks[0].price,
-                      availableShares: fmtShares(ob.asks[0].size)!,
-                    };
+                    buyYes = { price: ob.asks[0].price, shares: fmtShares(ob.asks[0].size)! };
                   }
                   if (ob.bids?.length) {
                     buyNo = {
                       price: +(1 - ob.bids[0].price).toFixed(4),
-                      availableShares: fmtShares(ob.bids[0].size)!,
+                      shares: fmtShares(ob.bids[0].size)!,
                     };
                   }
                 }
               } catch {
-                /* orderbook may not exist */
+                /* no orderbook */
               }
 
-              const spotPrice = ticker ? (spotPrices[ticker] ?? null) : null;
+              const spot = ticker ? (spotPrices[ticker] ?? null) : null;
               const strikeMatch = m.title?.match(/above \$([0-9.,]+)/i);
-              const strikePrice = strikeMatch ? parseFloat(strikeMatch[1].replace(/,/g, "")) : null;
+              const strike = strikeMatch ? parseFloat(strikeMatch[1].replace(/,/g, "")) : null;
               const pctDiff =
-                spotPrice && strikePrice
-                  ? +(((spotPrice - strikePrice) / strikePrice) * 100).toFixed(2)
+                spot != null && strike != null
+                  ? +(((spot - strike) / strike) * 100).toFixed(2)
                   : null;
 
               return {
                 slug: m.slug,
                 title: m.title,
                 ticker,
-                spotPrice,
-                strikePrice,
                 pctDiff,
                 timeRemaining: timeRemaining(m.expirationTimestamp),
                 buyYes,
@@ -219,42 +209,37 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
             }),
           );
 
-          return JSON.stringify({ count: summaries.length, markets: summaries }, null, 2);
+          return JSON.stringify({ count: markets.length, markets }, null, 2);
         } catch (err) {
           return `Error fetching markets: ${err instanceof Error ? err.message : String(err)}`;
         }
       },
     },
 
-    /* ───────────────── 2. Buy Market Order (FOK) ───────────────── */
+    /* ───────── 2. Buy (FOK) ───────── */
     {
       name: "limitless_buy_market_order",
       description:
-        "Buy YES or NO outcome tokens on a Limitless prediction market using a Fill-or-Kill market order. Requires USDC. Provide market slug, side (YES/NO), and USDC amount to spend.",
+        "Buy YES or NO shares on a Limitless market. Executes immediately (Fill-or-Kill). " +
+        "Returns orderId, USDC spent, shares received. Call check_order_status right after.",
       schema: BuyMarketOrderSchema,
       invoke: async (
         walletProvider: EvmWalletProvider,
         args: { marketSlug: string; side: "YES" | "NO"; amountUsdc: string },
       ) => {
         try {
-          // Fetch market to cache venue + get tokenIds
           const market = await clients.marketFetcher.getMarket(args.marketSlug);
 
-          if (!market.tokens) {
-            return `Error: Market ${args.marketSlug} has no CLOB tokens. It may be an AMM-only market.`;
-          }
-          if (!market.venue?.exchange) {
-            return `Error: Market ${args.marketSlug} has no venue exchange address.`;
-          }
+          if (!market.tokens)
+            return `Error: Market ${args.marketSlug} has no CLOB tokens (AMM-only).`;
+          if (!market.venue?.exchange)
+            return `Error: Market ${args.marketSlug} has no venue exchange.`;
 
           const tokenId = args.side === "YES" ? market.tokens.yes : market.tokens.no;
 
-          // Approve USDC (max) to venue.exchange — covers fees
-          const MAX_UINT256 = 2n ** 256n - 1n;
-          await approveERC20(walletProvider, USDC_ADDRESS, market.venue.exchange, MAX_UINT256);
+          await approveERC20(walletProvider, USDC_ADDRESS, market.venue.exchange, 2n ** 256n - 1n);
 
-          // Place FOK buy order
-          const response = await clients.orderClient.createOrder({
+          const res = await clients.orderClient.createOrder({
             tokenId,
             side: Side.BUY,
             makerAmount: parseFloat(args.amountUsdc),
@@ -264,28 +249,28 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
 
           return JSON.stringify(
             {
-              status: "order_created",
-              orderId: response.order.id,
+              status: "filled",
+              orderId: res.order.id,
               side: args.side,
-              usdcSpent: fmtShares(response.order.makerAmount),
-              sharesReceived: fmtShares(response.order.takerAmount),
-              matches: response.makerMatches?.length ?? 0,
+              usdcSpent: fmtShares(res.order.makerAmount),
+              sharesReceived: fmtShares(res.order.takerAmount),
+              matches: res.makerMatches?.length ?? 0,
               market: args.marketSlug,
             },
             null,
             2,
           );
         } catch (err) {
-          return `Error placing buy order: ${err instanceof Error ? err.message : String(err)}`;
+          return `Error: ${err instanceof Error ? err.message : String(err)}`;
         }
       },
     },
 
-    /* ───────────────── 3. Check Order Status ───────────────── */
+    /* ───────── 3. Check Order Status ───────── */
     {
       name: "limitless_check_order_status",
       description:
-        "Check the status of a previously placed order on Limitless Exchange by its order ID.",
+        "Check if an order was filled, partially filled, or failed. Call right after placing any order.",
       schema: CheckOrderStatusSchema,
       invoke: async (_walletProvider: EvmWalletProvider, args: { orderId: string }) => {
         try {
@@ -294,48 +279,37 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
           });
           return JSON.stringify(result, null, 2);
         } catch (err) {
-          return `Error checking order status: ${err instanceof Error ? err.message : String(err)}`;
+          return `Error: ${err instanceof Error ? err.message : String(err)}`;
         }
       },
     },
 
-    /* ───────────────── 4. Place Limit Sell (GTC) ───────────────── */
+    /* ───────── 4. Limit Sell (GTC) ───────── */
     {
       name: "limitless_place_limit_sell",
       description:
-        "Place a GTC (Good-Til-Cancelled) limit sell order for outcome tokens you hold. Requires holding the outcome tokens (YES or NO). Provide market slug, side, number of shares, and limit price (0.001-0.999).",
+        "Place a limit sell order (GTC) for shares you hold. Use after buying to set a take-profit price. " +
+        "Order stays open until filled or market expires. Returns orderId.",
       schema: PlaceLimitSellSchema,
       invoke: async (
         walletProvider: EvmWalletProvider,
-        args: {
-          marketSlug: string;
-          side: "YES" | "NO";
-          shares: number;
-          price: number;
-        },
+        args: { marketSlug: string; side: "YES" | "NO"; shares: number; price: number },
       ) => {
         try {
           const market = await clients.marketFetcher.getMarket(args.marketSlug);
 
-          if (!market.tokens) {
-            return `Error: Market ${args.marketSlug} has no CLOB tokens.`;
-          }
-          if (!market.venue?.exchange) {
-            return `Error: Market ${args.marketSlug} has no venue exchange address.`;
-          }
+          if (!market.tokens) return `Error: Market ${args.marketSlug} has no CLOB tokens.`;
+          if (!market.venue?.exchange)
+            return `Error: Market ${args.marketSlug} has no venue exchange.`;
 
           const tokenId = args.side === "YES" ? market.tokens.yes : market.tokens.no;
 
-          // Approve CTF (ERC-1155) to venue.exchange
           await approveERC1155(walletProvider, CTF_ADDRESS, market.venue.exchange);
-
-          // For NegRisk/grouped markets, also approve the adapter
           if (market.negRiskRequestId && market.venue.adapter) {
             await approveERC1155(walletProvider, CTF_ADDRESS, market.venue.adapter);
           }
 
-          // Place GTC sell order
-          const response = await clients.orderClient.createOrder({
+          const res = await clients.orderClient.createOrder({
             tokenId,
             side: Side.SELL,
             price: args.price,
@@ -346,35 +320,35 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
 
           return JSON.stringify(
             {
-              status: "order_created",
-              orderId: response.order.id,
+              status: "order_placed",
+              orderId: res.order.id,
               side: args.side,
-              price: response.order.price,
-              shares: fmtShares(response.order.makerAmount),
-              usdcExpected: fmtShares(response.order.takerAmount),
-              orderType: response.order.orderType,
+              price: res.order.price,
+              shares: fmtShares(res.order.makerAmount),
+              usdcExpected: fmtShares(res.order.takerAmount),
               market: args.marketSlug,
             },
             null,
             2,
           );
         } catch (err) {
-          return `Error placing limit sell: ${err instanceof Error ? err.message : String(err)}`;
+          return `Error: ${err instanceof Error ? err.message : String(err)}`;
         }
       },
     },
 
-    /* ───────────────── 5. Get Positions ───────────────── */
+    /* ───────── 5. Get Positions ───────── */
     {
       name: "limitless_get_positions",
       description:
-        "Get all your open positions on Limitless Exchange, including CLOB and AMM positions with P&L and token balances.",
+        "Get all open Limitless positions with share balances, unrealized P&L, and latest prices. " +
+        "Use to monitor positions and decide whether to sell.",
       schema: GetPositionsSchema,
-      invoke: async (_walletProvider: EvmWalletProvider, _args: Record<string, never>) => {
+      invoke: async () => {
         try {
-          const positions = await clients.portfolioFetcher.getPositions();
+          const pos = await clients.portfolioFetcher.getPositions();
 
-          const clobSummary = positions.clob.map((p) => ({
+          const clob = pos.clob.map((p) => ({
             market: p.market.title,
             slug: p.market.slug,
             closed: p.market.closed,
@@ -386,7 +360,7 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
             latestNoPrice: p.latestTrade?.latestNoPrice ?? null,
           }));
 
-          const ammSummary = positions.amm.map((p) => ({
+          const amm = pos.amm.map((p) => ({
             market: p.market.title,
             slug: p.market.slug,
             closed: p.market.closed,
@@ -397,17 +371,12 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
           }));
 
           return JSON.stringify(
-            {
-              clobPositions: clobSummary,
-              ammPositions: ammSummary,
-              totalClob: clobSummary.length,
-              totalAmm: ammSummary.length,
-            },
+            { clob, amm, totalClob: clob.length, totalAmm: amm.length },
             null,
             2,
           );
         } catch (err) {
-          return `Error fetching positions: ${err instanceof Error ? err.message : String(err)}`;
+          return `Error: ${err instanceof Error ? err.message : String(err)}`;
         }
       },
     },

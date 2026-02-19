@@ -8,7 +8,7 @@
   "homepage": "https://github.com/RezaRahemtola/ETHDenver-2026/tree/main/basileus-agentkit-plugin#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/RezaRahemtola/ETHDenver-2026",
+    "url": "git+https://github.com/RezaRahemtola/ETHDenver-2026.git",
     "directory": "basileus-agentkit-plugin"
   },
   "bugs": {
@@ -98,6 +98,11 @@
     "ox": "^0.12.4",
     "zod": "^3.0.0",
     "zod-to-json-schema": "^3.25.0"
+  },
+  "overrides": {
+    "@aleph-sdk/ethereum": {
+      "ethers": "^6.16.0"
+    }
   },
   "devDependencies": {
     "@blockrun/llm": "^0.3.0",

@@ -158,17 +158,32 @@ export function ActivityRow({ activity, nested }: ActivityRowProps) {
             </span>
           )}
 
-          {txCount > 0 && (
+          {txCount === 1 && (
             <a
               href={`https://basescan.org/tx/${activity.txHashes![0]}`}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-zinc-400 transition-colors hover:text-zinc-50"
               style={{ fontFamily: "var(--font-mono)" }}
-              title={activity.txHashes!.join(", ")}
             >
-              {txCount} tx{txCount > 1 ? "s" : ""}
+              1 tx
             </a>
+          )}
+          {txCount > 1 && (
+            <div className="flex items-center gap-1">
+              {activity.txHashes!.map((hash, i) => (
+                <a
+                  key={hash}
+                  href={`https://basescan.org/tx/${hash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-zinc-400 transition-colors hover:text-zinc-50"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                >
+                  tx {i + 1}
+                </a>
+              ))}
+            </div>
           )}
 
           <span className="text-xs text-zinc-500">{relativeTime(activity.timestamp)}</span>

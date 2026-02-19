@@ -6,7 +6,6 @@ export { actionsToTools } from "./tools.js";
 export { summarizePhase } from "./summarizer.js";
 export { createAlephActionProvider } from "./actions/aleph.js";
 export { compoundFixedProvider } from "./actions/compound/index.js";
-export { createLimitlessActionProvider } from "./actions/limitless/index.js";
 export { createAgentWallet, getBalances } from "./wallet.js";
 export type { WalletInfo } from "./wallet.js";
 export type { ToolExecution, ActivityType, AgentActivity } from "./types.js";

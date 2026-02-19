@@ -6,7 +6,7 @@ import { CTF_ADDRESS, USDC_ADDRESS } from "./constants.js";
 import {
   BuyMarketOrderSchema,
   CheckOrderStatusSchema,
-  GetDailyMarketsSchema,
+  GetMarketsSchema,
   GetPositionsSchema,
   PlaceLimitSellSchema,
 } from "./schemas.js";
@@ -138,18 +138,25 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
   return customActionProvider<EvmWalletProvider>([
     /* ───────── 1. Scan Markets ───────── */
     {
-      name: "limitless_get_daily_markets",
+      name: "limitless_get_markets",
       description:
-        "Scan daily crypto prediction markets on Limitless for mispricing opportunities. " +
+        "Scan hourly and daily crypto prediction markets on Limitless for mispricing opportunities. " +
         "Returns ticker, spot-vs-strike % diff, buy YES/NO prices with available shares, and time remaining. " +
         "Positive pctDiff = spot above strike (favors YES), negative = below (favors NO).",
-      schema: GetDailyMarketsSchema,
+      schema: GetMarketsSchema,
       invoke: async () => {
         try {
-          const resp = await clients.httpClient.get<{ data: MarketInterface[] }>(
-            `/market-pages/${CRYPTO_PAGE_ID}/markets`,
-            { params: { duration: "daily", page: 1, limit: 25, sort: "deadline" } },
-          );
+          const [hourlyResp, dailyResp] = await Promise.all([
+            clients.httpClient.get<{ data: MarketInterface[] }>(
+              `/market-pages/${CRYPTO_PAGE_ID}/markets`,
+              { params: { duration: "hourly", page: 1, limit: 25, sort: "deadline" } },
+            ),
+            clients.httpClient.get<{ data: MarketInterface[] }>(
+              `/market-pages/${CRYPTO_PAGE_ID}/markets`,
+              { params: { duration: "daily", page: 1, limit: 25, sort: "deadline" } },
+            ),
+          ]);
+          const resp = { data: [...hourlyResp.data, ...dailyResp.data] };
 
           const now = Date.now();
           const active = resp.data.filter(

@@ -6,7 +6,6 @@ import {
   compoundFixedProvider,
   createAgentWallet,
   createAlephActionProvider,
-  createLimitlessActionProvider,
   createLLMClient,
   drainX402TxHashes,
   getBalances,
@@ -16,6 +15,7 @@ import {
   type ToolExecution,
   type WalletInfo,
 } from "basileus-agentkit-plugin";
+import { createLimitlessActionProvider } from "./actions/limitless/index.js";
 import { basileusTriggerProvider } from "./actions/basileus.js";
 import { config } from "./config.js";
 
@@ -319,7 +319,7 @@ export async function startAgent() {
     "withdraw",
     "approve",
     "get_balance",
-    "get_daily_markets",
+    "get_markets",
   ]);
 
   const { tools: inventoryTools, executeTool: execInventory } = actionsToTools(inventoryActions);

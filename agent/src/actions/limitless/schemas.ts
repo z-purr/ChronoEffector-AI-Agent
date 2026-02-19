@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-export const GetDailyMarketsSchema = z
+export const GetMarketsSchema = z
   .object({})
   .describe(
-    "Scan daily crypto prediction markets on Limitless for mispricing opportunities. " +
+    "Scan hourly and daily crypto prediction markets on Limitless for mispricing opportunities. " +
       "Returns each market's ticker, spot-vs-strike % difference, best buy YES/NO price with available shares, and time remaining. " +
       "Positive pctDiff = spot above strike (favors YES), negative = below (favors NO). " +
       "Compare pctDiff against buy prices to find edges.",

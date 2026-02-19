@@ -10,6 +10,7 @@
 - **Summarizer** — summarize agent phases into short, human-readable activity logs
 - **Wallet** — create an AgentKit wallet with Basileus' ERC-8021 builder code attribution
 - **Compound Actions** — fixed Compound Finance action provider (supply, withdraw, portfolio)
+- **Limitless Actions** - action provider for Limitless prediction market
 - **Aleph Actions** — VPS computing costs information, balance tracking and swaps action provider for built-in self-funding of computing costs
 
 ## Install

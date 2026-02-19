@@ -131,8 +131,13 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
       (p) => p.name === "value" || p.name === "amount",
     );
     if (amountParam) {
-      rawValue = parseFloat(amountParam.value) / 10 ** USDC_DECIMALS;
-      valueDisplay = formatAmount(rawValue);
+      const parsed = parseFloat(amountParam.value) / 10 ** USDC_DECIMALS;
+      if (!Number.isFinite(parsed) || parsed > 1e12) {
+        valueDisplay = "Unlimited";
+      } else {
+        rawValue = parsed;
+        valueDisplay = formatAmount(rawValue);
+      }
       symbol = "USDC";
     }
   }

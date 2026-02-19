@@ -84,6 +84,58 @@ function timeRemaining(expirationTimestamp: number | undefined): string | null {
   return `${h}h ${m}m`;
 }
 
+/* ── Spot price helper (CoinGecko) ── */
+const TICKER_TO_COINGECKO: Record<string, string> = {
+  BTC: "bitcoin",
+  ETH: "ethereum",
+  SOL: "solana",
+  AVAX: "avalanche-2",
+  DOGE: "dogecoin",
+  XRP: "ripple",
+  ADA: "cardano",
+  DOT: "polkadot",
+  LINK: "chainlink",
+  MATIC: "matic-network",
+  NEAR: "near",
+  SUI: "sui",
+  ARB: "arbitrum",
+  OP: "optimism",
+  PEPE: "pepe",
+  WIF: "dogwifcoin",
+  BONK: "bonk",
+  BNB: "binancecoin",
+  LTC: "litecoin",
+  BCH: "bitcoin-cash",
+  AAVE: "aave",
+  UNI: "uniswap",
+  MKR: "maker",
+  HYPE: "hyperliquid",
+  TRX: "tron",
+  TRUMP: "official-trump",
+  MNT: "mantle",
+  XLM: "stellar",
+  ZEC: "zcash",
+  WLFI: "world-liberty-financial",
+  LEO: "leo-token",
+  HBAR: "hedera-hashgraph",
+  PAXG: "pax-gold",
+  XMR: "monero",
+  ONDO: "ondo-finance",
+};
+
+async function fetchSpotPrices(tickers: string[]): Promise<Record<string, number>> {
+  const ids = tickers.map((t) => TICKER_TO_COINGECKO[t.toUpperCase()]).filter(Boolean);
+  if (!ids.length) return {};
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(",")}&vs_currencies=usd`;
+  const res = await fetch(url);
+  const data = await res.json();
+  const result: Record<string, number> = {};
+  for (const [ticker, cgId] of Object.entries(TICKER_TO_COINGECKO)) {
+    if (data[cgId]?.usd != null) result[ticker] = data[cgId].usd;
+  }
+  return result;
+}
+
 /* ── Factory ── */
 export function createLimitlessActionProvider(apiKey: string, privateKey: string) {
   const clients: LimitlessClients = createLimitlessClients(apiKey, privateKey);
@@ -93,7 +145,7 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
     {
       name: "limitless_get_daily_markets",
       description:
-        "Fetch active daily crypto prediction markets (e.g. '$ETH above $X') from Limitless Exchange. Returns prices, orderbooks, time remaining, and token IDs for trading.",
+        "Fetch active daily crypto prediction markets from Limitless Exchange. Returns strike price, current spot price, buy YES/NO prices with available shares, and time remaining. Use to find mispricing opportunities.",
       schema: GetDailyMarketsSchema,
       invoke: async (_walletProvider: EvmWalletProvider, _args: { category?: string }) => {
         try {
@@ -108,22 +160,32 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
             (m: MarketInterface) => !m.expired && (m.expirationTimestamp ?? 0) > now,
           );
 
+          // Fetch spot prices for all tickers
+          const tickers = [
+            ...new Set(
+              dailyCrypto
+                .map((m: any) => (m as any).priceOracleMetadata?.ticker as string | undefined)
+                .filter(Boolean),
+            ),
+          ] as string[];
+          const spotPrices = await fetchSpotPrices(tickers);
+
           const summaries = await Promise.all(
             dailyCrypto.map(async (m: MarketInterface) => {
+              const mAny = m as any;
+              const ticker = mAny.priceOracleMetadata?.ticker ?? null;
               let buyYes: { price: number; availableShares: number } | null = null;
               let buyNo: { price: number; availableShares: number } | null = null;
 
               try {
                 if (m.slug) {
                   const ob = await clients.marketFetcher.getOrderBook(m.slug);
-                  // Asks = sell YES orders → taking them = buying YES
                   if (ob.asks?.length) {
                     buyYes = {
                       price: ob.asks[0].price,
                       availableShares: fmtShares(ob.asks[0].size)!,
                     };
                   }
-                  // Bids = buy YES orders → taking them = buying NO at 1-price
                   if (ob.bids?.length) {
                     buyNo = {
                       price: +(1 - ob.bids[0].price).toFixed(4),
@@ -135,9 +197,21 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
                 /* orderbook may not exist */
               }
 
+              const spotPrice = ticker ? (spotPrices[ticker] ?? null) : null;
+              const strikeMatch = m.title?.match(/above \$([0-9.,]+)/i);
+              const strikePrice = strikeMatch ? parseFloat(strikeMatch[1].replace(/,/g, "")) : null;
+              const pctDiff =
+                spotPrice && strikePrice
+                  ? +(((spotPrice - strikePrice) / strikePrice) * 100).toFixed(2)
+                  : null;
+
               return {
                 slug: m.slug,
                 title: m.title,
+                ticker,
+                spotPrice,
+                strikePrice,
+                pctDiff,
                 timeRemaining: timeRemaining(m.expirationTimestamp),
                 buyYes,
                 buyNo,

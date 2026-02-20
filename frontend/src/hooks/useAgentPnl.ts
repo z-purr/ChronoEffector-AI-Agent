@@ -54,7 +54,6 @@ function useTransferAnalysis(address: `0x${string}` | undefined) {
           params[k] = String(v);
         }
       }
-      console.log("[PNL] initialDeposit:", firstUsdcDeposit, "inferenceCost:", inferenceCost);
       return { inferenceCost, initialDeposit: firstUsdcDeposit };
     },
     enabled: !!address,

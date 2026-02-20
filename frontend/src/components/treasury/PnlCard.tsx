@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Info } from "lucide-react";
 import type { PnlData } from "../../hooks/useAgentPnl";
@@ -14,7 +15,48 @@ function fmtUsd(n: number): string {
   return `${n < 0 ? "-" : ""}$${abs.toFixed(2)}`;
 }
 
+function PnlBreakdown({ data, colorClass }: { data: PnlData; colorClass: string }) {
+  return (
+    <div className="space-y-1.5 text-[11px]" style={{ fontFamily: "var(--font-mono)" }}>
+      <div className="flex justify-between text-zinc-400">
+        <span>Assets base</span>
+        <span>{fmtUsd(data.baseAssetsUsd)}</span>
+      </div>
+      <div className="flex justify-between text-zinc-400">
+        <span>Assets now</span>
+        <span>{fmtUsd(data.currentAssetsUsd)}</span>
+      </div>
+      <div className="flex justify-between text-zinc-400">
+        <span>Asset P&L</span>
+        <span className={data.assetPnl >= 0 ? "text-emerald-400" : "text-red-400"}>
+          {data.assetPnl >= 0 ? "+" : ""}
+          {fmtUsd(data.assetPnl)}
+        </span>
+      </div>
+      <div className="border-t border-neutral-700 pt-1.5 flex justify-between text-zinc-400">
+        <span>Inference</span>
+        <span className="text-red-400">-${data.inferenceCostUsd.toFixed(2)}</span>
+      </div>
+      <div className="flex justify-between text-zinc-400">
+        <span>Computing</span>
+        <span className="text-red-400">-${data.computingCostUsd.toFixed(2)}</span>
+      </div>
+      <div className="border-t border-neutral-700 pt-1.5">
+        <div className="flex justify-between text-zinc-500">
+          <span>{data.totalAlephStreamed.toFixed(2)} ALEPH</span>
+          <span>@ ${data.alephUsd.toFixed(4)}</span>
+        </div>
+      </div>
+      <div className="border-t border-neutral-700 pt-1.5 flex justify-between font-medium text-zinc-200">
+        <span>Total</span>
+        <span className={colorClass}>{fmtUsd(data.pnl)}</span>
+      </div>
+    </div>
+  );
+}
+
 export function PnlCard({ data, index = 0 }: PnlCardProps) {
+  const [open, setOpen] = useState(false);
   const isPositive = data.pnl >= 0;
   const colorClass = isPositive ? "text-emerald-400" : "text-red-400";
   const glowColor = isPositive ? "rgb(16 185 129 / 0.25)" : "rgb(239 68 68 / 0.25)";
@@ -42,46 +84,20 @@ export function PnlCard({ data, index = 0 }: PnlCardProps) {
             PNL
           </span>
 
-          {/* Info icon with hover tooltip */}
-          <div className="group relative">
+          {/* Mobile: click to expand inline */}
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="appearance-none md:hidden"
+          >
+            <Info className="h-3 w-3 cursor-help text-zinc-500 transition-colors active:text-zinc-300" />
+          </button>
+
+          {/* Desktop: hover popover */}
+          <div className="group relative hidden md:block">
             <Info className="h-3 w-3 cursor-help text-zinc-500 transition-colors group-hover:text-zinc-300" />
             <div className="invisible absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 rounded-lg border border-neutral-700 bg-neutral-900 p-3 opacity-0 shadow-xl transition-all group-hover:visible group-hover:opacity-100">
-              <div className="space-y-1.5 text-[11px]" style={{ fontFamily: "var(--font-mono)" }}>
-                <div className="flex justify-between text-zinc-400">
-                  <span>Assets base</span>
-                  <span>{fmtUsd(data.baseAssetsUsd)}</span>
-                </div>
-                <div className="flex justify-between text-zinc-400">
-                  <span>Assets now</span>
-                  <span>{fmtUsd(data.currentAssetsUsd)}</span>
-                </div>
-                <div className="flex justify-between text-zinc-400">
-                  <span>Asset P&L</span>
-                  <span className={data.assetPnl >= 0 ? "text-emerald-400" : "text-red-400"}>
-                    {data.assetPnl >= 0 ? "+" : ""}
-                    {fmtUsd(data.assetPnl)}
-                  </span>
-                </div>
-                <div className="border-t border-neutral-700 pt-1.5 flex justify-between text-zinc-400">
-                  <span>Inference</span>
-                  <span className="text-red-400">-${data.inferenceCostUsd.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-zinc-400">
-                  <span>Computing</span>
-                  <span className="text-red-400">-${data.computingCostUsd.toFixed(2)}</span>
-                </div>
-                <div className="border-t border-neutral-700 pt-1.5">
-                  <div className="flex justify-between text-zinc-500">
-                    <span>{data.totalAlephStreamed.toFixed(2)} ALEPH</span>
-                    <span>@ ${data.alephUsd.toFixed(4)}</span>
-                  </div>
-                </div>
-                <div className="border-t border-neutral-700 pt-1.5 flex justify-between font-medium text-zinc-200">
-                  <span>Total</span>
-                  <span className={colorClass}>{fmtUsd(data.pnl)}</span>
-                </div>
-              </div>
-              {/* Arrow */}
+              <PnlBreakdown data={data} colorClass={colorClass} />
               <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-neutral-700" />
             </div>
           </div>
@@ -96,6 +112,13 @@ export function PnlCard({ data, index = 0 }: PnlCardProps) {
         >
           {fmtUsd(data.pnl)}
         </p>
+
+        {/* Mobile inline breakdown */}
+        {open && (
+          <div className="mt-3 border-t border-neutral-700 pt-3 md:hidden">
+            <PnlBreakdown data={data} colorClass={colorClass} />
+          </div>
+        )}
       </div>
     </Card>
   );

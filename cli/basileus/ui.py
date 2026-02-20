@@ -12,7 +12,7 @@ console = Console()
 def _fail(label: str, error: Exception) -> None:
     """Print a red X with error message and exit."""
     console.print(f"  [red]\u2718[/red] {label}")
-    console.print(f"    [red]{error}[/red]")
+    console.print(f"    [red]{type(error).__name__}: {error or repr(error)}[/red]")
     raise typer.Exit(1)
 
 

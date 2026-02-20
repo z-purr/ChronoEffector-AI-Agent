@@ -39,6 +39,7 @@ from basileus.chain.balance import get_eth_balance, wait_for_eth_funding
 from basileus.chain.swap import (
     compute_aleph_swap_eth,
     compute_usdc_swap_eth,
+    get_aleph_balance,
     swap_eth_to_aleph,
     swap_eth_to_usdc,
 )
@@ -48,6 +49,8 @@ from basileus.chain.constants import (
     BUILDER_CODE,
     FRONTEND_CONTENT_HASH,
     MIN_ETH_FUNDING,
+    MIN_ETH_RESERVE,
+    TARGET_ALEPH_TOKENS,
 )
 from basileus.chain.ens import (
     check_existing_subname,
@@ -132,7 +135,16 @@ async def deploy_command(
             step += 1
             rprint(f"[bold]Step {step}:[/bold] Configuring agent environment...")
             try:
-                env_content = "\n".join(f"{k}={v}" for k, v in env_vars.items()) + "\n"
+                # Preserve existing env vars if .env.prod already exists
+                existing_env: dict[str, str | None] = {}
+                if env_path.exists():
+                    from dotenv import dotenv_values
+
+                    existing_env = dict(dotenv_values(env_path))
+                existing_env.update(env_vars)
+                env_content = (
+                    "\n".join(f"{k}={v}" for k, v in existing_env.items() if v) + "\n"
+                )
                 os.makedirs(path, exist_ok=True)
                 with open(env_path, "w") as f:
                     f.write(env_content)
@@ -168,63 +180,95 @@ async def deploy_command(
             )
         rprint()
 
-        # Fund wallet
-        step += 1
-        rprint(f"[bold]Step {step}:[/bold] Fund your agent wallet")
-        rprint()
-        rprint(
-            Panel(
-                f"[bold]Send ETH (Base) to:[/bold]\n\n"
-                f"  [cyan]{address}[/cyan]\n\n"
-                f"This ETH will be swapped to fund the agent:\n"
-                f"  - ~10 ALEPH for compute (Aleph Cloud)\n"
-                f"  - 0.001 ETH kept for gas\n"
-                f"  - Remainder swapped to USDC\n\n"
-                f"[dim]Minimum required: {min_eth} ETH[/dim]",
-                title="[bold yellow]Fund Agent Wallet[/bold yellow]",
-                border_style="yellow",
-            )
-        )
-        rprint()
-
-        eth_balance = wait_for_eth_funding(address, min_amount=min_eth)
-        rprint(f"  [green]Received {eth_balance:.4f} ETH[/green]")
-        rprint()
-
-        # Swap ETH → ALEPH + USDC
-        step += 1
-        rprint(f"[bold]Step {step}:[/bold] Swapping ETH → ALEPH + USDC...")
-        rprint()
-
-        aleph_eth = await _run_step(
-            "Computing ALEPH swap amount",
-            fn=lambda: compute_aleph_swap_eth(w3),
-        )
-        rprint(f"  [dim]Swapping {aleph_eth:.4f} ETH for ~10 ALEPH[/dim]")
-
-        aleph_tx = await _run_step(
-            "Swapping ETH → ALEPH",
-            fn=lambda: swap_eth_to_aleph(w3, private_key, aleph_eth),
-        )
-        rprint(
-            f"  [dim]Tx: [link=https://basescan.org/tx/{aleph_tx}]{aleph_tx}[/link][/dim]"
-        )
-
-        await asyncio.sleep(2)
-
-        # Swap remaining ETH → USDC (keep MIN_ETH_RESERVE for gas)
-        current_eth = get_eth_balance(w3, address)
-        usdc_eth = compute_usdc_swap_eth(current_eth)
-        if usdc_eth > 0:
-            rprint(f"  [dim]Swapping {usdc_eth:.4f} ETH for USDC[/dim]")
-            usdc_tx = await _run_step(
-                "Swapping ETH → USDC",
-                fn=lambda: swap_eth_to_usdc(w3, private_key, usdc_eth),
-            )
+        # Fund wallet (skip if already funded — ETH below min means swaps already done)
+        eth_balance = get_eth_balance(w3, address)
+        if eth_balance >= min_eth:
             rprint(
-                f"  [dim]Tx: [link=https://basescan.org/tx/{usdc_tx}]{usdc_tx}[/link][/dim]"
+                f"  [dim]Wallet already has {eth_balance:.4f} ETH, skipping funding[/dim]"
             )
-        rprint()
+            rprint()
+        else:
+            needs_funding = eth_balance < MIN_ETH_RESERVE
+            if needs_funding:
+                step += 1
+                rprint(f"[bold]Step {step}:[/bold] Fund your agent wallet")
+                rprint()
+                rprint(
+                    Panel(
+                        f"[bold]Send ETH (Base) to:[/bold]\n\n"
+                        f"  [cyan]{address}[/cyan]\n\n"
+                        f"This ETH will be swapped to fund the agent:\n"
+                        f"  - ~10 ALEPH for compute (Aleph Cloud)\n"
+                        f"  - 0.001 ETH kept for gas\n"
+                        f"  - Remainder swapped to USDC\n\n"
+                        f"[dim]Minimum required: {min_eth} ETH[/dim]",
+                        title="[bold yellow]Fund Agent Wallet[/bold yellow]",
+                        border_style="yellow",
+                    )
+                )
+                rprint()
+
+                eth_balance = wait_for_eth_funding(address, min_amount=min_eth)
+                rprint(f"  [green]Received {eth_balance:.4f} ETH[/green]")
+                rprint()
+            else:
+                rprint(
+                    f"  [dim]Wallet has {eth_balance:.4f} ETH (already funded), skipping[/dim]"
+                )
+                rprint()
+
+        # Swap ETH → ALEPH + USDC (skip if not enough ETH beyond gas reserve)
+        eth_available = eth_balance - MIN_ETH_RESERVE
+        if eth_available > 0:
+            step += 1
+            rprint(f"[bold]Step {step}:[/bold] Swapping ETH → ALEPH + USDC...")
+            rprint()
+
+            # Check if ALEPH balance already sufficient
+            current_aleph = get_aleph_balance(w3, address)
+            if current_aleph >= TARGET_ALEPH_TOKENS:
+                rprint(
+                    f"  [dim]Already have {current_aleph:.1f} ALEPH, skipping ALEPH swap[/dim]"
+                )
+            else:
+                aleph_eth = await _run_step(
+                    "Computing ALEPH swap amount",
+                    fn=lambda: asyncio.to_thread(compute_aleph_swap_eth, w3),
+                )
+
+                if aleph_eth <= eth_available:
+                    rprint(f"  [dim]Swapping {aleph_eth:.4f} ETH for ~10 ALEPH[/dim]")
+                    aleph_tx = await _run_step(
+                        "Swapping ETH → ALEPH",
+                        fn=lambda: asyncio.to_thread(
+                            swap_eth_to_aleph, w3, private_key, aleph_eth
+                        ),
+                    )
+                    rprint(
+                        f"  [dim]Tx: [link=https://basescan.org/tx/0x{aleph_tx}]0x{aleph_tx}[/link][/dim]"
+                    )
+                    await asyncio.sleep(2)
+                else:
+                    rprint("  [dim]Not enough ETH for ALEPH swap, skipping[/dim]")
+
+            # Swap remaining ETH → USDC (keep MIN_ETH_RESERVE for gas)
+            current_eth = get_eth_balance(w3, address)
+            usdc_eth = compute_usdc_swap_eth(current_eth)
+            if usdc_eth > 0:
+                rprint(f"  [dim]Swapping {usdc_eth:.4f} ETH for USDC[/dim]")
+                usdc_tx = await _run_step(
+                    "Swapping ETH → USDC",
+                    fn=lambda: asyncio.to_thread(
+                        swap_eth_to_usdc, w3, private_key, usdc_eth
+                    ),
+                )
+                rprint(
+                    f"  [dim]Tx: [link=https://basescan.org/tx/0x{usdc_tx}]0x{usdc_tx}[/link][/dim]"
+                )
+            rprint()
+        else:
+            rprint("  [dim]No ETH available for swaps, skipping[/dim]")
+            rprint()
 
         # Register ENS subname (if needed)
         if needs_ens:

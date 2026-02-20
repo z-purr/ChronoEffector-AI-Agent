@@ -41,22 +41,35 @@ def build_agent_metadata(label: str) -> dict:
     }
 
 
-async def upload_metadata_to_ipfs(aleph_account: ETHAccount, metadata: dict) -> str:
+async def upload_metadata_to_ipfs(
+    aleph_account: ETHAccount, metadata: dict, max_retries: int = 3
+) -> str:
     """Upload agent metadata JSON to IPFS via Aleph. Returns ipfs:// URI."""
+    import asyncio
+
     content_bytes = json.dumps(metadata, indent=2).encode("utf-8")
 
-    async with AuthenticatedAlephHttpClient(
-        account=aleph_account, api_server=ALEPH_API_URL
-    ) as client:
-        result, _status = await client.create_store(
-            file_content=content_bytes,
-            storage_engine=StorageEnum.ipfs,
-            channel=ALEPH_CHANNEL,
-            guess_mime_type=True,
-        )
-
-    cid = result.content.item_hash
-    return f"ipfs://{cid}"
+    for attempt in range(max_retries):
+        try:
+            async with AuthenticatedAlephHttpClient(
+                account=aleph_account, api_server=ALEPH_API_URL
+            ) as client:
+                result, _status = await asyncio.wait_for(
+                    client.create_store(
+                        file_content=content_bytes,
+                        storage_engine=StorageEnum.ipfs,
+                        channel=ALEPH_CHANNEL,
+                        guess_mime_type=True,
+                    ),
+                    timeout=120,
+                )
+            cid = result.content.item_hash
+            return f"ipfs://{cid}"
+        except Exception:
+            if attempt >= max_retries - 1:
+                raise
+            await asyncio.sleep(3)
+    raise RuntimeError("IPFS upload failed after retries")
 
 
 def check_existing_registration(w3: Web3, address: str) -> bool:

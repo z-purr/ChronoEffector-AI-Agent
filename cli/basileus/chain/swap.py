@@ -3,7 +3,9 @@ from web3 import Web3
 
 from basileus.chain.constants import (
     ALEPH_ADDRESS,
+    ALEPH_DECIMALS,
     BASE_CHAIN_ID,
+    ERC20_BALANCE_ABI,
     MIN_ETH_RESERVE,
     TARGET_ALEPH_TOKENS,
     UNISWAP_ALEPH_POOL,
@@ -61,7 +63,7 @@ def _send_swap(
             "from": address,
             "value": amount_wei,
             "nonce": w3.eth.get_transaction_count(address),
-            "gas": 300_000,
+            "gas": 500_000,
             "maxFeePerGas": w3.eth.gas_price * 2,
             "maxPriorityFeePerGas": w3.to_wei(0.001, "gwei"),
             "chainId": BASE_CHAIN_ID,
@@ -72,7 +74,7 @@ def _send_swap(
     tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
     receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
     if receipt["status"] != 1:
-        raise RuntimeError(f"Swap transaction reverted: {tx_hash.hex()}")
+        raise RuntimeError(f"Swap transaction reverted: 0x{tx_hash.hex()}")
     return tx_hash.hex()
 
 
@@ -84,6 +86,16 @@ def swap_eth_to_aleph(w3: Web3, private_key: str, eth_amount: float) -> str:
 def swap_eth_to_usdc(w3: Web3, private_key: str, eth_amount: float) -> str:
     """Swap ETH -> USDC via Uniswap V3. Returns tx hash."""
     return _send_swap(w3, private_key, USDC_ADDRESS, UNISWAP_FEE_USDC, eth_amount)
+
+
+def get_aleph_balance(w3: Web3, address: str) -> float:
+    """Get ALEPH token balance for address. Returns human-readable float."""
+    contract = w3.eth.contract(
+        address=Web3.to_checksum_address(ALEPH_ADDRESS),
+        abi=ERC20_BALANCE_ABI,
+    )
+    raw = contract.functions.balanceOf(Web3.to_checksum_address(address)).call()
+    return raw / (10**ALEPH_DECIMALS)
 
 
 def compute_aleph_swap_eth(w3: Web3) -> float:

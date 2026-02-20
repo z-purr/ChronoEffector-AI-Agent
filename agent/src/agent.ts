@@ -6,8 +6,8 @@ import {
   compoundFixedProvider,
   createAgentWallet,
   createAlephActionProvider,
-  createSwapActionProvider,
   createLLMClient,
+  createSwapActionProvider,
   drainX402TxHashes,
   getBalances,
   installX402Tracker,
@@ -74,12 +74,12 @@ DECISION FRAMEWORK:
 1. Determine the favored side from pctDiff sign. pctDiff > 0 → YES likely wins. pctDiff < 0 → NO likely wins.
 2. Check if the favored side's share price is cheap relative to the implied probability. The key question: does the share price already reflect the pctDiff, or is there room for it to move toward 1.0?
 3. Time amplifies conviction: if minutesRemaining is low (< 120) and pctDiff is strong, the outcome is nearly decided — the share price should be close to 1.0. If it isn't, that's your edge.
-4. Time adds uncertainty: if minutesRemaining is high (> 360), spot could still reverse — require a stronger pctDiff to act.
+4. Time adds uncertainty: if minutesRemaining is high, spot could still reverse — require a stronger pctDiff to act.
 5. Prefer buying the favored side when its price is > 0.5 (lower taker fees: ~0.03-1.5%) over contrarian bets at < 0.5 (fees up to 3%).
 6. You hold to resolution. Shares pay $1 if correct, $0 if wrong. Your profit = $1 - buyPrice - fee.
 
 WHEN TO TRADE:
-- You SHOULD trade when you see a clear edge. Do not be overly cautious — you are here to make money.
+- You SHOULD trade when you see a clear edge. Do not be overly cautious nor overly optimist, the risk/reward SHOULD be worth it.
 - Max ${config.maxTradeUsdc} USDC per trade.
 - You may withdraw from Compound to fund a trade, but NOT to rebalance.
 

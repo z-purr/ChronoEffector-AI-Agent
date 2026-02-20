@@ -17,5 +17,5 @@ export function useAgentStatus(address: `0x${string}`) {
   else if (hoursLeft <= 0) status = "dead";
   else if (hoursLeft < 24) status = "warning";
 
-  return { status, hoursLeft, isLoading };
+  return { status, hoursLeft, activeSince: streams.data?.activeSince, isLoading };
 }

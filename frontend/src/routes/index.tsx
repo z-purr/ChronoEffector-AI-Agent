@@ -49,10 +49,20 @@ function formatHoursLeft(h: number): string {
   return `${Math.round(h / 24)}d left`;
 }
 
+function formatActiveSince(ts: number): string {
+  const elapsed = Math.floor(Date.now() / 1000) - ts;
+  if (elapsed < 60) return "< 1m";
+  if (elapsed < 3600) return `${Math.floor(elapsed / 60)}m`;
+  if (elapsed < 86400) return `${Math.floor(elapsed / 3600)}h`;
+  const days = Math.floor(elapsed / 86400);
+  const hours = Math.floor((elapsed % 86400) / 3600);
+  return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+}
+
 // --- AgentCard ---
 
 function AgentCard({ agent, index }: { agent: Agent; index: number }) {
-  const { status, hoursLeft, isLoading } = useAgentStatus(agent.owner);
+  const { status, hoursLeft, activeSince, isLoading } = useAgentStatus(agent.owner);
   const cfg = STATUS_CONFIG[status];
 
   return (
@@ -96,9 +106,16 @@ function AgentCard({ agent, index }: { agent: Agent; index: number }) {
           {isLoading ? (
             <div className="h-4 w-24 animate-skeleton-pulse rounded bg-neutral-800" />
           ) : (
-            <span className="text-xs text-zinc-400" style={{ fontFamily: "var(--font-mono)" }}>
-              {formatHoursLeft(hoursLeft)}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-zinc-400" style={{ fontFamily: "var(--font-mono)" }}>
+                {formatHoursLeft(hoursLeft)}
+              </span>
+              {activeSince != null && (
+                <span className="text-xs text-zinc-500" style={{ fontFamily: "var(--font-mono)" }}>
+                  {formatActiveSince(activeSince)} active
+                </span>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>

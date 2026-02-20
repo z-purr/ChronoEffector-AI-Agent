@@ -47,6 +47,6 @@ export function useLimitlessPositions(address: `0x${string}` | undefined) {
       return total;
     },
     enabled: !!address,
-    refetchInterval: 30_000,
+    refetchInterval: 2 * 60_000,
   });
 }

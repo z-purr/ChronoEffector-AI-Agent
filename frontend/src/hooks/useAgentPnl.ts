@@ -57,8 +57,8 @@ function useTransferAnalysis(address: `0x${string}` | undefined) {
       return { inferenceCost, initialDeposit: firstUsdcDeposit };
     },
     enabled: !!address,
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
   });
 }
 

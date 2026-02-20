@@ -27,6 +27,7 @@ Your job this phase: CHECK HEALTH + CAPITAL INVENTORY.
 1. Call get_aleph_info → check ALEPH balance, burn rate, hours left
 2. Check your ETH balance (for gas) and idle USDC balance
 3. Call compound_get_portfolio → check USDC supplied in Compound
+4. Call limitless_redeem_positions → redeem any resolved winning prediction market positions back to USDC
 
 Then evaluate:
 - ALEPH healthy? (hours_left >= 24)
@@ -91,6 +92,7 @@ interface PhaseResult {
   model: string;
   reasoning: string;
   toolExecutions: ToolExecution[];
+  txHashes: string[];
 }
 
 interface TriggerInfo {
@@ -147,6 +149,7 @@ Check health and capital. Decide: trigger_survival or trigger_strategy.`;
       model: config.heartbeatModel,
       reasoning: result.response,
       toolExecutions: result.toolExecutions,
+      txHashes: result.txHashes,
     });
 
     console.log(`[inventory] ${result.response}`);
@@ -194,6 +197,7 @@ Fix the issue.`;
         model: config.heartbeatModel,
         reasoning: result.response,
         toolExecutions: result.toolExecutions,
+        txHashes: result.txHashes,
       });
 
       console.log(`[survival] ${result.response}`);
@@ -205,6 +209,7 @@ Fix the issue.`;
         model: config.heartbeatModel,
         reasoning: errMsg,
         toolExecutions: [],
+        txHashes: [],
       });
     }
   } else if (trigger?.kind === "strategy") {
@@ -229,6 +234,7 @@ Scan markets and trade if you find an edge. Then handle Compound.`;
         model: config.strategyModel,
         reasoning: result.response,
         toolExecutions: result.toolExecutions,
+        txHashes: result.txHashes,
       });
 
       console.log(`[strategy] ${result.response}`);
@@ -240,6 +246,7 @@ Scan markets and trade if you find an edge. Then handle Compound.`;
         model: config.strategyModel,
         reasoning: errMsg,
         toolExecutions: [],
+        txHashes: [],
       });
     }
   } else {
@@ -263,9 +270,10 @@ Scan markets and trade if you find an edge. Then handle Compound.`;
       phase.toolExecutions,
     );
 
-    const toolTxHashes = phase.toolExecutions.map((t) => t.txHash).filter(Boolean) as string[];
     const allTxHashes =
-      phase === phases[phases.length - 1] ? [...toolTxHashes, ...inferenceTxHashes] : toolTxHashes;
+      phase === phases[phases.length - 1]
+        ? [...phase.txHashes, ...inferenceTxHashes]
+        : [...phase.txHashes];
 
     await publisher.publish(phase.type, {
       summary,
@@ -326,6 +334,7 @@ export async function startAgent() {
   const inventoryActions = pick([
     "get_aleph_info",
     "get_portfolio",
+    "redeem_positions",
     "trigger_survival",
     "trigger_strategy",
   ]);

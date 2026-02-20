@@ -10,7 +10,24 @@ import {
   GetMarketsSchema,
   GetPositionsSchema,
   PlaceLimitSellSchema,
+  RedeemPositionsSchema,
 } from "./schemas.js";
+
+/* ── CTF redeemPositions minimal ABI ── */
+const redeemPositionsAbi = [
+  {
+    inputs: [
+      { name: "collateralToken", type: "address" },
+      { name: "parentCollectionId", type: "bytes32" },
+      { name: "conditionId", type: "bytes32" },
+      { name: "indexSets", type: "uint256[]" },
+    ],
+    name: "redeemPositions",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+] as const;
 
 /* ── ERC-1155 minimal ABI ── */
 const erc1155SetApprovalAbi = [
@@ -401,6 +418,76 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
             null,
             2,
           );
+        } catch (err) {
+          return `Error: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      },
+    },
+
+    /* ───────── 6. Redeem Positions ───────── */
+    {
+      name: "limitless_redeem_positions",
+      description:
+        "Redeem winning shares from resolved Limitless markets back to USDC. " +
+        "Auto-detects closed CLOB positions with token balance > 0 and redeems on-chain.",
+      schema: RedeemPositionsSchema,
+      invoke: async (walletProvider: EvmWalletProvider, _args: Record<string, never>) => {
+        try {
+          const pos = await clients.portfolioFetcher.getPositions();
+
+          const redeemable = pos.clob.filter((p) => {
+            if (!p.market.closed) return false;
+            if (!(p.market as any).conditionId) return false;
+            const yesBalance = Number(p.tokensBalance.yes ?? 0);
+            const noBalance = Number(p.tokensBalance.no ?? 0);
+            return yesBalance > 0 || noBalance > 0;
+          });
+
+          if (redeemable.length === 0) {
+            return JSON.stringify({ redeemed: 0, message: "No redeemable positions found" });
+          }
+
+          const PARENT_COLLECTION_ID =
+            "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
+          const INDEX_SETS = [1n, 2n];
+
+          const results: { market: string; conditionId: string; txHash: string }[] = [];
+          const errors: { market: string; error: string }[] = [];
+
+          for (const p of redeemable) {
+            const conditionId = (p.market as any).conditionId as string;
+            try {
+              const data = encodeFunctionData({
+                abi: redeemPositionsAbi,
+                functionName: "redeemPositions",
+                args: [
+                  USDC_ADDRESS,
+                  PARENT_COLLECTION_ID,
+                  conditionId as `0x${string}`,
+                  INDEX_SETS,
+                ],
+              });
+              const txHash = await walletProvider.sendTransaction({
+                to: CTF_ADDRESS,
+                data,
+              });
+              await walletProvider.waitForTransactionReceipt(txHash);
+              results.push({
+                market: p.market.title ?? p.market.slug ?? "unknown",
+                conditionId,
+                txHash,
+              });
+            } catch (err) {
+              errors.push({
+                market: p.market.title ?? p.market.slug ?? "unknown",
+                error: err instanceof Error ? err.message : String(err),
+              });
+            }
+          }
+
+          const json = JSON.stringify({ redeemed: results.length, results, errors }, null, 2);
+          const hashLines = results.map((r) => `Transaction hash: ${r.txHash}`).join("\n");
+          return hashLines ? `${json}\n${hashLines}` : json;
         } catch (err) {
           return `Error: ${err instanceof Error ? err.message : String(err)}`;
         }

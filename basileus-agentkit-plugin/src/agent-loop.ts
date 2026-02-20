@@ -72,9 +72,11 @@ export async function runAgentLoop(
 
       let txHash: string | undefined;
       if (extractTxHashes) {
-        const txMatch = toolResult.match(/[Hh]ash:?\s*(0x[a-fA-F0-9]{64})/);
-        txHash = txMatch?.[1];
-        if (txHash) txHashes.push(txHash);
+        const matches = toolResult.matchAll(/[Hh]ash:?\s*(0x[a-fA-F0-9]{64})/g);
+        for (const m of matches) {
+          if (!txHash) txHash = m[1]; // first match for backward compat
+          txHashes.push(m[1]);
+        }
       }
 
       toolExecutions.push({ name, args, result: toolResult, txHash });

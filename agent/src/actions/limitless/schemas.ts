@@ -68,3 +68,10 @@ export const GetPositionsSchema = z
     "Get all open Limitless positions with share balances, unrealized P&L, and latest prices. " +
       "Use to monitor existing positions and decide whether to sell.",
   );
+
+export const RedeemPositionsSchema = z
+  .object({})
+  .describe(
+    "Redeem winning shares from resolved Limitless markets back to USDC. " +
+      "Auto-detects closed CLOB positions with token balance > 0 and redeems them on-chain via the CTF contract.",
+  );

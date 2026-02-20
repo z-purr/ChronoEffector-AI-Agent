@@ -199,19 +199,21 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
             (m: MarketInterface) => !m.expired && (m.expirationTimestamp ?? 0) > now,
           );
 
+          type MarketWithOracle = MarketInterface & { priceOracleMetadata?: { ticker?: string } };
+
           const tickers = [
             ...new Set(
-              active
-                .map((m: any) => m.priceOracleMetadata?.ticker as string | undefined)
-                .filter(Boolean),
+              (active as MarketWithOracle[])
+                .map((m) => m.priceOracleMetadata?.ticker)
+                .filter((t): t is string => !!t),
             ),
-          ] as string[];
+          ];
           const spotPrices = await fetchSpotPrices(tickers);
 
           const markets = await Promise.all(
             active.map(async (m: MarketInterface) => {
-              const mAny = m as any;
-              const ticker: string | null = mAny.priceOracleMetadata?.ticker ?? null;
+              const ticker: string | null =
+                (m as MarketWithOracle).priceOracleMetadata?.ticker ?? null;
 
               let buyYes: { price: number; shares: number } | null = null;
               let buyNo: { price: number; shares: number } | null = null;
@@ -437,7 +439,7 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
 
           const redeemable = pos.clob.filter((p) => {
             if (!p.market.closed) return false;
-            if (!(p.market as any).conditionId) return false;
+            if (!(p.market as unknown as { conditionId?: string }).conditionId) return false;
             const yesBalance = Number(p.tokensBalance.yes ?? 0);
             const noBalance = Number(p.tokensBalance.no ?? 0);
             return yesBalance > 0 || noBalance > 0;
@@ -455,7 +457,7 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
           const errors: { market: string; error: string }[] = [];
 
           for (const p of redeemable) {
-            const conditionId = (p.market as any).conditionId as string;
+            const conditionId = (p.market as unknown as { conditionId: string }).conditionId;
             try {
               const data = encodeFunctionData({
                 abi: redeemPositionsAbi,

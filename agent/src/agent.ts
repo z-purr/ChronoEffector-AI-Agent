@@ -15,8 +15,8 @@ import {
   type ToolExecution,
   type WalletInfo,
 } from "basileus-agentkit-plugin";
-import { createLimitlessActionProvider } from "./actions/limitless/index.js";
 import { basileusTriggerProvider } from "./actions/basileus.js";
+import { createLimitlessActionProvider } from "./actions/limitless/index.js";
 import { config } from "./config.js";
 
 const INVENTORY_PROMPT = `You are Basileus, an autonomous AI agent on Base blockchain.
@@ -24,6 +24,7 @@ You pay for compute via an ALEPH Superfluid stream. You pay for inference with U
 
 Your job this phase: CHECK HEALTH + CAPITAL INVENTORY.
 
+Do the following actions:
 1. Call get_aleph_info → check ALEPH balance, burn rate, hours left
 2. Check your ETH balance (for gas) and idle USDC balance
 3. Call compound_get_portfolio → check USDC supplied in Compound
@@ -32,10 +33,12 @@ Your job this phase: CHECK HEALTH + CAPITAL INVENTORY.
 Then evaluate:
 - ALEPH healthy? (hours_left >= 24)
 - ETH sufficient for gas? (>= ${config.ethMinBalance} ETH)
-- Idle USDC sufficient for inference? (>= ${config.usdcSurvivalThreshold} USDC, considering you can withdraw from Compound if needed)
+- Idle USDC sufficient for inference? (>= ${config.usdcSurvivalThreshold} USDC)
 
-If UNHEALTHY (idle USDC + Compound USDC < ${config.usdcSurvivalThreshold}): call trigger_survival with what's wrong + all balances.
-If HEALTHY: calculate excess = idle USDC + Compound USDC - ${config.usdcIdleTarget}. If excess > 0, call trigger_strategy with excess amount + balances. The idle target (${config.usdcIdleTarget}) is higher than the survival threshold (${config.usdcSurvivalThreshold}) to leave a buffer for operational costs between cycles.
+IMPORTANT: Only use IDLE USDC (wallet balance) for health checks. Compound USDC is locked and requires a withdrawal tx — do NOT count it as available.
+
+If UNHEALTHY (idle USDC < ${config.usdcSurvivalThreshold}): call trigger_survival with what's wrong + all balances.
+If HEALTHY: calculate excess = idle USDC - ${config.usdcIdleTarget}. If excess > 0, call trigger_strategy with excess amount + balances. The idle target (${config.usdcIdleTarget}) is higher than the survival threshold (${config.usdcSurvivalThreshold}) to leave a buffer for operational costs between cycles. Report Compound balance in the trigger so strategy/survival can decide whether to withdraw.
 
 Be concise. Think step by step.`;
 
@@ -44,8 +47,8 @@ Something is wrong with your resources. Fix it.
 
 Available actions:
 - swap_eth_to_aleph: if ALEPH is low, swap ETH to get more compute time
-- compound_withdraw: if you need more idle USDC or ETH, withdraw from Compound first
-- Token swaps via wallet if needed
+- compound_withdraw: if you need more idle USDC, withdraw from Compound if possible (only withdraw the MINIMUM anount needed to reach the idle target of ${config.usdcIdleTarget} USDC)
+- Token swaps via wallet if needed (if there is not enough ETH to swap for ALEPH for example, try to swap USDC to ETH first, or USDC to ALEPH directly, be resourceful)
 
 Fix the issues reported. Be efficient — do only what's needed.`;
 

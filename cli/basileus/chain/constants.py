@@ -94,3 +94,53 @@ L2_REGISTRY_ABI = [
         "type": "function",
     },
 ]
+
+# ERC-8004 IdentityRegistry on Base
+ERC8004_IDENTITY_REGISTRY = "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
+
+ERC8004_IDENTITY_REGISTRY_ABI = [
+    {
+        "inputs": [
+            {"name": "agentURI", "type": "string"},
+            {
+                "name": "metadata",
+                "type": "tuple[]",
+                "components": [
+                    {"name": "key", "type": "string"},
+                    {"name": "value", "type": "bytes"},
+                ],
+            },
+        ],
+        "name": "register",
+        "outputs": [{"name": "agentId", "type": "uint256"}],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "owner", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {"name": "owner", "type": "address"},
+            {"name": "index", "type": "uint256"},
+        ],
+        "name": "tokenOfOwnerByIndex",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "name": "agentId", "type": "uint256"},
+            {"indexed": False, "name": "agentURI", "type": "string"},
+            {"indexed": True, "name": "owner", "type": "address"},
+        ],
+        "name": "Registered",
+        "type": "event",
+    },
+]

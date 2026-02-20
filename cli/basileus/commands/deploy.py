@@ -44,6 +44,12 @@ from basileus.chain.ens import (
     register_subname,
     set_content_hash,
 )
+from basileus.chain.erc8004 import (
+    build_agent_metadata,
+    check_existing_registration,
+    register_agent,
+    upload_metadata_to_ipfs,
+)
 from basileus.ui import _fail, _run_step
 
 console = Console()
@@ -227,6 +233,45 @@ async def deploy_command(
                 _fail("Setting contentHash", e)
             rprint()
 
+        # Register on ERC-8004 IdentityRegistry
+        agent_id_display = None
+        step += 1
+        rprint(f"[bold]Step {step}:[/bold] ERC-8004 agent registration...")
+        rprint()
+
+        if label is None:
+            _fail("ERC-8004 registration", RuntimeError("ENS label not available"))
+        assert label is not None
+
+        existing_agent_id = check_existing_registration(w3, address)
+        if existing_agent_id is not None:
+            rprint(
+                f"  [green]Already registered:[/green] agentId = {existing_agent_id}"
+            )
+            agent_id_display = existing_agent_id
+        else:
+            ens_name = f"{label}.basileus-agent.eth"
+            metadata = build_agent_metadata(label)
+
+            agent_uri = await _run_step(
+                "Uploading metadata to IPFS",
+                fn=lambda: upload_metadata_to_ipfs(account, metadata),
+            )
+            rprint(f"  [dim]URI: {agent_uri}[/dim]")
+
+            agent_id, reg_tx = await _run_step(
+                "Registering agent on-chain",
+                fn=lambda: asyncio.to_thread(
+                    register_agent, w3, private_key, agent_uri, ens_name
+                ),
+            )
+            rprint(f"  [green]Registered:[/green] agentId = {agent_id}")
+            rprint(
+                f"  [dim]Tx: [link=https://basescan.org/tx/{reg_tx}]{reg_tx}[/link][/dim]"
+            )
+            agent_id_display = agent_id
+        rprint()
+
         # Create Aleph Cloud instance
         step += 1
         rprint(f"[bold]Step {step}:[/bold] Create Aleph Cloud instance...")
@@ -349,7 +394,12 @@ async def deploy_command(
             Panel(
                 f"[bold]Agent Address:[/bold]    [cyan]{address}[/cyan]\n"
                 f"[bold]ENS Name:[/bold]         [cyan]{label}.basileus-agent.eth[/cyan]\n"
-                f"[bold]USDC Balance:[/bold]     {balance:.2f} USDC\n"
+                + (
+                    f"[bold]ERC-8004 ID:[/bold]     {agent_id_display}\n"
+                    if agent_id_display is not None
+                    else ""
+                )
+                + f"[bold]USDC Balance:[/bold]     {balance:.2f} USDC\n"
                 f"[bold]Instance IP:[/bold]      {instance_ip}\n"
                 f"[bold]Network:[/bold]          Base Mainnet\n"
                 f"[bold]Service:[/bold]          [green]basileus-agent (active)[/green]\n"

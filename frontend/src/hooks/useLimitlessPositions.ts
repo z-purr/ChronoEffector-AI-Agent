@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-const LIMITLESS_API = "https://corsproxy.io/?https://api.limitless.exchange";
+const LIMITLESS_API = "https://api.allorigins.win/raw?url=https://api.limitless.exchange";
 const SHARES_DECIMALS = 6;
 
 function fromAtomic(raw: string | number | null | undefined): number {

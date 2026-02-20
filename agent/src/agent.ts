@@ -39,7 +39,7 @@ Then evaluate:
 IMPORTANT: Only use IDLE USDC (wallet balance) for health checks. Compound USDC is locked and requires a withdrawal tx — do NOT count it as available.
 
 Decision (pick exactly one):
-1. If UNHEALTHY (idle USDC < ${config.usdcSurvivalThreshold}): call trigger_survival with what's wrong + all balances.
+1. If UNHEALTHY (idle USDC < ${config.usdcSurvivalThreshold} OR ETH < ${config.ethMinBalance}): call trigger_survival with what's wrong + all balances.
 2. Otherwise call trigger_strategy with idle USDC, Compound balance, and all balances. Strategy will decide whether to withdraw from Compound and/or trade. The idle target (${config.usdcIdleTarget}) is higher than the survival threshold (${config.usdcSurvivalThreshold}) to leave a buffer for operational costs between cycles.
 
 Be concise. Think step by step.`;
@@ -351,7 +351,13 @@ export async function startAgent() {
   ]);
 
   // Survival: fix resource issues (swap ALEPH, withdraw from Compound)
-  const survivalActions = pick(["swap_eth_to_aleph", "swap_usdc_to_eth", "withdraw", "approve", "get_balance"]);
+  const survivalActions = pick([
+    "swap_eth_to_aleph",
+    "swap_usdc_to_eth",
+    "withdraw",
+    "approve",
+    "get_balance",
+  ]);
 
   // Strategy: Limitless markets + Compound yield
   const strategyActions = pick([

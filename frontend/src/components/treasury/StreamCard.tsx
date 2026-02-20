@@ -7,6 +7,7 @@ interface StreamCardProps {
   flowRatePerSec: bigint | undefined;
   flowRatePerHour: number;
   hoursLeft: number;
+  activeSince?: number;
 }
 
 function hoursLeftLabel(h: number): { text: string; colorClass: string } {
@@ -18,12 +19,23 @@ function hoursLeftLabel(h: number): { text: string; colorClass: string } {
   return { text: `${Math.round(h / 24)}d remaining`, colorClass: "text-green-500" };
 }
 
+function activeSinceLabel(ts: number): string {
+  const elapsed = Math.floor(Date.now() / 1000) - ts;
+  if (elapsed < 60) return "< 1m active";
+  if (elapsed < 3600) return `${Math.floor(elapsed / 60)}m active`;
+  if (elapsed < 86400) return `${Math.floor(elapsed / 3600)}h active`;
+  const days = Math.floor(elapsed / 86400);
+  const hours = Math.floor((elapsed % 86400) / 3600);
+  return hours > 0 ? `${days}d ${hours}h active` : `${days}d active`;
+}
+
 export function StreamCard({
   address,
   alephRaw,
   flowRatePerSec,
   flowRatePerHour,
   hoursLeft,
+  activeSince,
 }: StreamCardProps) {
   const { intRef, decRef } = useLiveAlephBalance(alephRaw, flowRatePerSec, 6);
 
@@ -106,6 +118,12 @@ export function StreamCard({
           >
             {hlInfo.text}
           </span>
+
+          {activeSince != null && (
+            <span className="text-sm text-zinc-500" style={{ fontFamily: "var(--font-mono)" }}>
+              &bull; {activeSinceLabel(activeSince)}
+            </span>
+          )}
         </div>
       </div>
     </Card>

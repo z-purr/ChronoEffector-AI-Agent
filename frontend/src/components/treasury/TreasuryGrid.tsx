@@ -60,6 +60,7 @@ export function TreasuryGrid({ address }: TreasuryGridProps) {
           flowRatePerSec={flowRatePerSec}
           flowRatePerHour={flowRatePerHour}
           hoursLeft={hoursLeft}
+          activeSince={streams.data?.activeSince}
         />
         <BalanceCard
           label="ETH"

@@ -7,6 +7,7 @@ export interface SuperfluidStream {
   sender: { id: string };
   streamedUntilUpdatedAt: string;
   updatedAtTimestamp: string;
+  createdAtTimestamp: string;
 }
 
 export async function getOutflows(address: string): Promise<SuperfluidStream[]> {
@@ -15,6 +16,7 @@ export async function getOutflows(address: string): Promise<SuperfluidStream[]> 
       currentFlowRate
       streamedUntilUpdatedAt
       updatedAtTimestamp
+      createdAtTimestamp
       token { symbol id }
       receiver { id }
       sender { id }

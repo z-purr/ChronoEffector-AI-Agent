@@ -7,6 +7,7 @@ export interface StreamInfo {
   totalFlowRatePerSec: bigint;
   flowRatePerHour: number;
   totalAlephStreamed: number;
+  activeSince: number | undefined; // unix timestamp of earliest stream
   streams: SuperfluidStream[];
 }
 
@@ -29,10 +30,17 @@ export function useSuperfluidStreams(address: `0x${string}` | undefined) {
         totalStreamedWei += streamed + sinceUpdate;
       }
 
+      // Active since = creation of the current (non-zero) stream
+      const activeStreams = alephStreams.filter((s) => BigInt(s.currentFlowRate) > 0n);
+      const activeSince = activeStreams.length
+        ? Math.min(...activeStreams.map((s) => Number(s.createdAtTimestamp)))
+        : undefined;
+
       return {
         totalFlowRatePerSec: totalFlowRate,
         flowRatePerHour: parseFloat(formatUnits(totalFlowRate * 3600n, 18)),
         totalAlephStreamed: parseFloat(formatUnits(totalStreamedWei, 18)),
+        activeSince,
         streams: alephStreams,
       };
     },

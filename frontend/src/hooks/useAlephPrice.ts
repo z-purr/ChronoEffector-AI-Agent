@@ -11,7 +11,7 @@ export function useAlephPrice() {
       const usd: number = data.aleph?.usd ?? 0;
       return { alephUsd: usd };
     },
-    refetchInterval: 60_000,
-    staleTime: 30_000,
+    refetchInterval: 15 * 60_000,
+    staleTime: 15 * 60_000,
   });
 }

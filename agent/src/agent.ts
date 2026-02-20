@@ -6,6 +6,7 @@ import {
   compoundFixedProvider,
   createAgentWallet,
   createAlephActionProvider,
+  createSwapActionProvider,
   createLLMClient,
   drainX402TxHashes,
   getBalances,
@@ -48,8 +49,13 @@ Something is wrong with your resources. Fix it.
 
 Available actions:
 - swap_eth_to_aleph: if ALEPH is low, swap ETH to get more compute time
-- compound_withdraw: if you need more idle USDC, withdraw from Compound if possible (only withdraw the MINIMUM anount needed to reach the idle target of ${config.usdcIdleTarget} USDC)
-- Token swaps via wallet if needed (if there is not enough ETH to swap for ALEPH for example, try to swap USDC to ETH first, or USDC to ALEPH directly, be resourceful)
+- swap_usdc_to_eth: if ETH is low for gas, swap USDC to ETH
+- compound_withdraw: withdraw USDC from Compound (only withdraw the MINIMUM needed to reach idle target of ${config.usdcIdleTarget} USDC)
+
+Priority order when ETH is low:
+1. If idle USDC >= 1: swap_usdc_to_eth directly
+2. If idle USDC < 1 but Compound has USDC: compound_withdraw first, then swap_usdc_to_eth
+3. Then if ALEPH is also low: swap_eth_to_aleph
 
 Fix the issues reported. Be efficient — do only what's needed.`;
 
@@ -322,6 +328,7 @@ export async function startAgent() {
       walletActionProvider(),
       erc20ActionProvider(),
       createAlephActionProvider(config.rpcUrl),
+      createSwapActionProvider(config.rpcUrl),
       compoundFixedProvider,
       basileusTriggerProvider,
       ...(limitlessProvider ? [limitlessProvider] : []),
@@ -344,7 +351,7 @@ export async function startAgent() {
   ]);
 
   // Survival: fix resource issues (swap ALEPH, withdraw from Compound)
-  const survivalActions = pick(["swap_eth_to_aleph", "withdraw", "approve", "get_balance"]);
+  const survivalActions = pick(["swap_eth_to_aleph", "swap_usdc_to_eth", "withdraw", "approve", "get_balance"]);
 
   // Strategy: Limitless markets + Compound yield
   const strategyActions = pick([

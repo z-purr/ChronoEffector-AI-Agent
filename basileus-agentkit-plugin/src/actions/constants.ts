@@ -51,3 +51,27 @@ export const uniswapRouterAbi = [
     type: "function",
   },
 ] as const satisfies Abi;
+
+// --- Uniswap V3 SwapRouter multicall + unwrap ABI ---
+export const uniswapRouterMulticallAbi = [
+  {
+    inputs: [{ name: "data", type: "bytes[]" }],
+    name: "multicall",
+    outputs: [{ name: "results", type: "bytes[]" }],
+    stateMutability: "payable",
+    type: "function",
+  },
+] as const satisfies Abi;
+
+export const uniswapRouterUnwrapAbi = [
+  {
+    inputs: [
+      { name: "amountMinimum", type: "uint256" },
+      { name: "recipient", type: "address" },
+    ],
+    name: "unwrapWETH9",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+] as const satisfies Abi;

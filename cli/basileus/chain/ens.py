@@ -74,6 +74,17 @@ def _get_registry(w3: Web3):
     )
 
 
+def get_content_hash(w3: Web3, label: str) -> str | None:
+    """Read current contentHash from L2Registry for a subname. Returns hex string or None."""
+    registry = _get_registry(w3)
+    base_node = registry.functions.baseNode().call()
+    node = registry.functions.makeNode(base_node, label).call()
+    raw = registry.functions.contenthash(node).call()
+    if not raw:
+        return None
+    return f"0x{raw.hex()}"
+
+
 def set_content_hash(
     w3: Web3, private_key: str, label: str, content_hash_hex: str
 ) -> str:

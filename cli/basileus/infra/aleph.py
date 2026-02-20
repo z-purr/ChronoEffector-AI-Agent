@@ -29,7 +29,7 @@ from aleph_message.models.execution.environment import (
     NodeRequirements,
 )
 
-ALEPH_API_URL = "https://api3.aleph.im"
+ALEPH_API_URL = "https://api2.aleph.im"
 ALEPH_CHANNEL = "basileus"
 COMMUNITY_RECEIVER = "0x5aBd3258C5492fD378EBC2e0017416E199e5Da56"
 

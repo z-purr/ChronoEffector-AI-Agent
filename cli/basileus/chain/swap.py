@@ -88,6 +88,18 @@ def swap_eth_to_usdc(w3: Web3, private_key: str, eth_amount: float) -> str:
     return _send_swap(w3, private_key, USDC_ADDRESS, UNISWAP_FEE_USDC, eth_amount)
 
 
+def get_usdc_balance(w3: Web3, address: str) -> float:
+    """Get USDC token balance for address. Returns human-readable float."""
+    from basileus.chain.constants import USDC_ADDRESS, USDC_DECIMALS
+
+    contract = w3.eth.contract(
+        address=Web3.to_checksum_address(USDC_ADDRESS),
+        abi=ERC20_BALANCE_ABI,
+    )
+    raw = contract.functions.balanceOf(Web3.to_checksum_address(address)).call()
+    return raw / (10**USDC_DECIMALS)
+
+
 def get_aleph_balance(w3: Web3, address: str) -> float:
     """Get ALEPH token balance for address. Returns human-readable float."""
     contract = w3.eth.contract(

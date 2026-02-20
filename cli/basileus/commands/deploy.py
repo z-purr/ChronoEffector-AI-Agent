@@ -40,6 +40,7 @@ from basileus.chain.swap import (
     compute_aleph_swap_eth,
     compute_usdc_swap_eth,
     get_aleph_balance,
+    get_usdc_balance,
     swap_eth_to_aleph,
     swap_eth_to_usdc,
 )
@@ -180,16 +181,21 @@ async def deploy_command(
             )
         rprint()
 
-        # Fund wallet (skip if already funded — ETH below min means swaps already done)
+        # Check existing balances
         eth_balance = get_eth_balance(w3, address)
-        if eth_balance >= min_eth:
+        current_aleph = get_aleph_balance(w3, address)
+        current_usdc = get_usdc_balance(w3, address)
+        already_funded = eth_balance > 0 and current_aleph > 0 and current_usdc > 0
+
+        if already_funded:
             rprint(
-                f"  [dim]Wallet already has {eth_balance:.4f} ETH, skipping funding[/dim]"
+                f"  [dim]Wallet already funded ({eth_balance:.4f} ETH, "
+                f"{current_aleph:.1f} ALEPH, {current_usdc:.2f} USDC) — skipping[/dim]"
             )
             rprint()
         else:
-            needs_funding = eth_balance < MIN_ETH_RESERVE
-            if needs_funding:
+            # Fund wallet
+            if eth_balance < min_eth:
                 step += 1
                 rprint(f"[bold]Step {step}:[/bold] Fund your agent wallet")
                 rprint()
@@ -211,64 +217,59 @@ async def deploy_command(
                 eth_balance = wait_for_eth_funding(address, min_amount=min_eth)
                 rprint(f"  [green]Received {eth_balance:.4f} ETH[/green]")
                 rprint()
-            else:
-                rprint(
-                    f"  [dim]Wallet has {eth_balance:.4f} ETH (already funded), skipping[/dim]"
-                )
+
+            # Swap ETH → ALEPH + USDC
+            eth_available = eth_balance - MIN_ETH_RESERVE
+            if eth_available > 0:
+                step += 1
+                rprint(f"[bold]Step {step}:[/bold] Swapping ETH → ALEPH + USDC...")
                 rprint()
 
-        # Swap ETH → ALEPH + USDC (skip if not enough ETH beyond gas reserve)
-        eth_available = eth_balance - MIN_ETH_RESERVE
-        if eth_available > 0:
-            step += 1
-            rprint(f"[bold]Step {step}:[/bold] Swapping ETH → ALEPH + USDC...")
-            rprint()
-
-            # Check if ALEPH balance already sufficient
-            current_aleph = get_aleph_balance(w3, address)
-            if current_aleph >= TARGET_ALEPH_TOKENS:
-                rprint(
-                    f"  [dim]Already have {current_aleph:.1f} ALEPH, skipping ALEPH swap[/dim]"
-                )
-            else:
-                aleph_eth = await _run_step(
-                    "Computing ALEPH swap amount",
-                    fn=lambda: asyncio.to_thread(compute_aleph_swap_eth, w3),
-                )
-
-                if aleph_eth <= eth_available:
-                    rprint(f"  [dim]Swapping {aleph_eth:.4f} ETH for ~10 ALEPH[/dim]")
-                    aleph_tx = await _run_step(
-                        "Swapping ETH → ALEPH",
-                        fn=lambda: asyncio.to_thread(
-                            swap_eth_to_aleph, w3, private_key, aleph_eth
-                        ),
-                    )
+                if current_aleph >= TARGET_ALEPH_TOKENS:
                     rprint(
-                        f"  [dim]Tx: [link=https://basescan.org/tx/0x{aleph_tx}]0x{aleph_tx}[/link][/dim]"
+                        f"  [dim]Already have {current_aleph:.1f} ALEPH, skipping ALEPH swap[/dim]"
                     )
-                    await asyncio.sleep(2)
                 else:
-                    rprint("  [dim]Not enough ETH for ALEPH swap, skipping[/dim]")
+                    aleph_eth = await _run_step(
+                        "Computing ALEPH swap amount",
+                        fn=lambda: asyncio.to_thread(compute_aleph_swap_eth, w3),
+                    )
+                    if aleph_eth <= eth_available:
+                        rprint(
+                            f"  [dim]Swapping {aleph_eth:.4f} ETH for ~10 ALEPH[/dim]"
+                        )
+                        aleph_tx = await _run_step(
+                            "Swapping ETH → ALEPH",
+                            fn=lambda: asyncio.to_thread(
+                                swap_eth_to_aleph, w3, private_key, aleph_eth
+                            ),
+                        )
+                        rprint(
+                            f"  [dim]Tx: [link=https://basescan.org/tx/0x{aleph_tx}]0x{aleph_tx}[/link][/dim]"
+                        )
+                        await asyncio.sleep(2)
+                    else:
+                        rprint("  [dim]Not enough ETH for ALEPH swap, skipping[/dim]")
 
-            # Swap remaining ETH → USDC (keep MIN_ETH_RESERVE for gas)
-            current_eth = get_eth_balance(w3, address)
-            usdc_eth = compute_usdc_swap_eth(current_eth)
-            if usdc_eth > 0:
-                rprint(f"  [dim]Swapping {usdc_eth:.4f} ETH for USDC[/dim]")
-                usdc_tx = await _run_step(
-                    "Swapping ETH → USDC",
-                    fn=lambda: asyncio.to_thread(
-                        swap_eth_to_usdc, w3, private_key, usdc_eth
-                    ),
-                )
-                rprint(
-                    f"  [dim]Tx: [link=https://basescan.org/tx/0x{usdc_tx}]0x{usdc_tx}[/link][/dim]"
-                )
-            rprint()
-        else:
-            rprint("  [dim]No ETH available for swaps, skipping[/dim]")
-            rprint()
+                if current_usdc > 0:
+                    rprint(
+                        f"  [dim]Already have {current_usdc:.2f} USDC, skipping USDC swap[/dim]"
+                    )
+                else:
+                    current_eth = get_eth_balance(w3, address)
+                    usdc_eth = compute_usdc_swap_eth(current_eth)
+                    if usdc_eth > 0:
+                        rprint(f"  [dim]Swapping {usdc_eth:.4f} ETH for USDC[/dim]")
+                        usdc_tx = await _run_step(
+                            "Swapping ETH → USDC",
+                            fn=lambda: asyncio.to_thread(
+                                swap_eth_to_usdc, w3, private_key, usdc_eth
+                            ),
+                        )
+                        rprint(
+                            f"  [dim]Tx: [link=https://basescan.org/tx/0x{usdc_tx}]0x{usdc_tx}[/link][/dim]"
+                        )
+                rprint()
 
         # Register ENS subname (if needed)
         if needs_ens:

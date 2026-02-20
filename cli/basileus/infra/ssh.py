@@ -55,6 +55,11 @@ def wait_for_ssh(
     host: str, ssh_pubkey_path: Path | None = None, timeout: int = 300
 ) -> paramiko.SSHClient:
     """Retry SSH connection until success or timeout. Returns connected client."""
+    import logging
+
+    # Suppress paramiko transport errors during retry loop
+    logging.getLogger("paramiko.transport").setLevel(logging.CRITICAL)
+
     if ssh_pubkey_path is not None:
         key_path = _resolve_private_key(ssh_pubkey_path)
     else:
@@ -69,11 +74,13 @@ def wait_for_ssh(
     while time.time() < deadline:
         try:
             client.connect(hostname=host, username="root", key_filename=key_path)
+            logging.getLogger("paramiko.transport").setLevel(logging.WARNING)
             return client
         except Exception as e:
             last_error = e
             time.sleep(10)
 
+    logging.getLogger("paramiko.transport").setLevel(logging.WARNING)
     raise TimeoutError(
         f"SSH connection to {host} timed out after {timeout}s: {last_error}"
     )

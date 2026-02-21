@@ -110,7 +110,10 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
     () => tokenQuery.data?.pages.flatMap((p) => p.items) ?? [],
     [tokenQuery.data],
   );
-  const activities = useMemo(() => actQuery.data ?? [], [actQuery.data]);
+  const activities = useMemo(
+    () => actQuery.data?.pages.flatMap((p) => p.items) ?? [],
+    [actQuery.data],
+  );
 
   // Deduplicate token transfers whose tx hash already appears in regular txs
   const txHashes = useMemo(() => new Set(allTxs.map((tx) => tx.hash.toLowerCase())), [allTxs]);
@@ -212,18 +215,25 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
           </div>
         )}
 
-        {(txQuery.hasNextPage || tokenQuery.hasNextPage) && (
+        {(txQuery.hasNextPage || tokenQuery.hasNextPage || actQuery.hasNextPage) && (
           <div className="border-t border-subtle px-4 py-3 text-center">
             <button
               type="button"
               onClick={() => {
                 if (txQuery.hasNextPage) txQuery.fetchNextPage();
                 if (tokenQuery.hasNextPage) tokenQuery.fetchNextPage();
+                if (actQuery.hasNextPage) actQuery.fetchNextPage();
               }}
-              disabled={txQuery.isFetchingNextPage || tokenQuery.isFetchingNextPage}
+              disabled={
+                txQuery.isFetchingNextPage ||
+                tokenQuery.isFetchingNextPage ||
+                actQuery.isFetchingNextPage
+              }
               className="text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-50 disabled:opacity-50"
             >
-              {txQuery.isFetchingNextPage || tokenQuery.isFetchingNextPage
+              {txQuery.isFetchingNextPage ||
+              tokenQuery.isFetchingNextPage ||
+              actQuery.isFetchingNextPage
                 ? "Loading..."
                 : "Load more"}
             </button>

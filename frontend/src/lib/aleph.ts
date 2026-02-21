@@ -33,16 +33,23 @@ export interface AgentActivity {
 
 const client = new AlephHttpClient();
 
-export async function fetchActivities(address: string): Promise<AgentActivity[]> {
+const ACTIVITIES_PER_PAGE = 50;
+
+export interface ActivitiesPage {
+  items: AgentActivity[];
+  nextPage: number | undefined;
+}
+
+export async function fetchActivities(address: string, page = 1): Promise<ActivitiesPage> {
   const res = await client.getPosts<AlephActivityContent>({
     types: ["inventory", "survival", "strategy", "error"],
     channels: [CHANNEL],
     addresses: [address],
-    pagination: 50,
-    page: 1,
+    pagination: ACTIVITIES_PER_PAGE,
+    page,
   });
 
-  return res.posts.map((post) => ({
+  const items = res.posts.map((post) => ({
     id: post.item_hash,
     timestamp: new Date(post.time * 1000).toISOString(),
     type: post.original_type as ActivityType,
@@ -52,4 +59,7 @@ export async function fetchActivities(address: string): Promise<AgentActivity[]>
     tools: post.content.tools,
     txHashes: post.content.txHashes,
   }));
+
+  const hasMore = res.pagination_page * ACTIVITIES_PER_PAGE < res.pagination_total;
+  return { items, nextPage: hasMore ? page + 1 : undefined };
 }

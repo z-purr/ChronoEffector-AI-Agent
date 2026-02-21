@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "basileus"
-version = "0.1.1"
+version = "0.1.2"
 description = "CLI for deploying Basileus autonomous AI Agents"
 authors = ["Basileus Team"]
 readme = "README.md"

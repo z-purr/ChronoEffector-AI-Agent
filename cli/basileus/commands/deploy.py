@@ -324,6 +324,8 @@ async def deploy_command(
                 _fail("Setting contentHash", e)
             rprint()
 
+            await asyncio.sleep(2)
+
         # Register on ERC-8004 IdentityRegistry
         agent_id_display = None
         step += 1

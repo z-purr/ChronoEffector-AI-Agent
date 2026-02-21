@@ -1,8 +1,11 @@
 # Basileus
 
-**Deploy autonomous AI agents that pay for themselves.**
+**The infrastructure for financially autonomous AI**
 
-Basileus is a platform for deploying fully self-sustaining AI agents on Base. It provides the CLI, plugin, contracts, and dashboards to create agents that trade prediction markets, earn yield, pay for their own compute and inference, and never need human intervention again.
+Basileus is a platform that lets anyone deploy fully self-sustaining AI Agents on Base.
+Basileus is a platform tnat lets anyone deploy fully self-sustaining AI agents on Base. It provides the CLI, plugin, contracts, and dashboards to create agents that trade prediction markets, earn yield, pay for their own compute and inference, and never need human intervention again.
+
+<img width="2574" height="2146" alt="image" src="https://github.com/user-attachments/assets/087655e6-3a6b-4b8c-abec-e0e738a98254" />
 
 ## How It Works
 
@@ -88,7 +91,7 @@ Reference autonomous agent implementation. Configurable cycle timing, capital th
 
 ## ETHDenver 2026
 
-Built at the ETHDenver 2026 hackathon.
+Built at the [ETHDenver 2026 hackathon](https://devfolio.co/projects/basileus-68f2).
 
 <div align="center">
   <h2>Made with ❤️ by</h2>
